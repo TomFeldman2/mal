@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -g -Wall -Wextra -Werror
+CXXFLAGS = -std=c++17 -g -Wall -Wextra -Werror
 
-step0_repl: step0_repl.cpp
-	$(CXX) $(CXXFLAGS) -o $@ step0_repl.cpp
+step1_read_print: step1_read_print.cpp Lexer.cpp Reader.cpp types.cpp Error.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $^

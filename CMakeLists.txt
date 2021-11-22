@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.16)
 project(mal)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(mal impls/cpp/step0_repl.cpp)
+add_executable(step1_read_print impls/cpp/step1_read_print.cpp
+        impls/cpp/Lexer.cpp impls/cpp/Reader.cpp impls/cpp/types.cpp impls/cpp/Error.cpp)
