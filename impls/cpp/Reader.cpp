@@ -4,7 +4,7 @@
 
 #include <cassert>
 #include <algorithm>
-#include <utility>
+#include <iostream>
 #include "Reader.h"
 #include "Lexer.h"
 #include "Error.h"
@@ -44,7 +44,7 @@ bool Reader::matchComment() {
  *
  */
 
-MalType* readStr(const std::string &input) {
+std::shared_ptr<MalType> readStr(const std::string &input) {
     Reader reader{tokenize(input)};
     return readFrom(reader);
 }
@@ -64,7 +64,7 @@ std::vector<std::string_view> tokenize(const std::string &input) {
     return tokens;
 }
 
-MalType* readFrom(Reader &reader) {
+std::shared_ptr<MalType> readFrom(Reader &reader) {
 
     if (reader.matchComment()) {
         throw Reader::Comment();
@@ -83,25 +83,25 @@ MalType* readFrom(Reader &reader) {
         return readMap(reader);
 
     if (reader.match("'"))
-        return new MalList("quote", readFrom(reader));
+        return std::make_shared<MalList>("quote", readFrom(reader));
 
     if (reader.match("`"))
-        return new MalList("quasiquote", readFrom(reader));
+        return std::make_shared<MalList>("quasiquote", readFrom(reader));
 
     if (reader.match("~"))
-        return new MalList("unquote", readFrom(reader));
+        return std::make_shared<MalList>("unquote", readFrom(reader));
 
     if (reader.match("@"))
-        return new MalList("deref", readFrom(reader));
+        return std::make_shared<MalList>("deref", readFrom(reader));
 
     if (reader.match("~@"))
-        return new MalList("splice-unquote", readFrom(reader));
+        return std::make_shared<MalList>("splice-unquote", readFrom(reader));
 
     if (reader.match("^")) {
         auto second = readFrom(reader);
         auto first = readFrom(reader);
-        auto list = new MalList("with-meta", first);
-        list->append(second);
+        auto list = std::make_shared<MalList>("with-meta", first);
+        list->push_back(second);
         return list;
     }
 
@@ -109,13 +109,13 @@ MalType* readFrom(Reader &reader) {
     return readAtom(reader);
 }
 
-MalList* readList(Reader &reader, const  bool is_list) {
-    auto list = new MalList(is_list);
+std::shared_ptr<MalList> readList(Reader &reader, const  bool is_list) {
+    auto list = std::make_shared<MalList>(is_list);
 
     const auto closing_paren = is_list ? ")" : "]";
     while (not reader.match(closing_paren)) {
         try {
-            list->append(readFrom(reader));
+            list->push_back(readFrom(reader));
         } catch (const Reader::Comment) {
             throw Error(std::string("Encountered comment inside ") + (is_list ? "list" : "vector"));
         }
@@ -124,14 +124,14 @@ MalList* readList(Reader &reader, const  bool is_list) {
 
 }
 
-MalHashMap *readMap(Reader &reader) {
-    auto map = new MalHashMap();
+std::shared_ptr<MalHashMap> readMap(Reader &reader) {
+    auto map = std::make_shared<MalHashMap>();
 
     while (not reader.match("}")) {
         try {
             const auto key = readFrom(reader);
             const auto value = readFrom(reader);
-            map->insert(key, value);
+            map->insert({key, value});
         } catch (const Reader::Comment&) {
             throw Error("Encountered comment inside hashmap");
         }
@@ -140,19 +140,18 @@ MalHashMap *readMap(Reader &reader) {
 }
 
 
-MalAtom* readAtom(Reader &reader) {
+std::shared_ptr<MalAtom> readAtom(Reader &reader) {
     const auto &token = reader.peek();
     reader.next();
 
-    return new MalAtom(token);
-//    MalAtom* atom = nullptr;
-//
-//    if (std::all_of(token.begin(), token.end(), [](const auto c){ return std::isdigit(c); })) {
-//        atom = new MalInt(token);
-//    } else {
-//        atom = new MalString(token);
-//    }
-//
-//    reader.next();
-//    return atom;
+    try {
+        auto number = std::stoi(std::string(token));
+        return std::make_shared<MalInt>(number);
+    } catch (const std::invalid_argument&) {}
+
+    if (token[0] == '"' and token[token.size() - 1] == '"') {
+        auto type =  std::make_shared<MalString>(token);
+        return type;
+    }
+    return std::make_shared<MalSymbol>(token);
 }

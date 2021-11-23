@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <memory>
 #include "types.h"
 
 class Reader {
@@ -34,17 +35,17 @@ public:
     bool matchComment();
 };
 
-MalType *readStr(const std::string &input);
-
 std::vector<std::string_view> tokenize(const std::string &input);
 
-MalType *readFrom(Reader &reader);
+std::shared_ptr<MalType> readStr(const std::string &input);
 
-MalList *readList(Reader &reader, bool is_list);
+std::shared_ptr<MalType> readFrom(Reader &reader);
 
-MalHashMap *readMap(Reader &reader);
+std::shared_ptr<MalList> readList(Reader &reader, bool is_list);
 
-MalAtom *readAtom(Reader &reader);
+std::shared_ptr<MalHashMap> readMap(Reader &reader);
+
+std::shared_ptr<MalAtom> readAtom(Reader &reader);
 
 
 #endif //MAL_READER_H
