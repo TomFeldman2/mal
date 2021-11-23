@@ -13,6 +13,8 @@
 
 //MalAtom::~MalAtom() = default;
 
+MalAtom::MalAtom(const std::string &value) : value(value) {}
+
 MalAtom::MalAtom(const std::string_view &value) : value(value) {}
 
 std::string MalAtom::toString() const {
@@ -30,6 +32,11 @@ std::string MalAtom::toString() const {
  */
 
 MalList::MalList(const bool isList) : is_list(isList) {}
+
+MalList::MalList(const std::string &macro, MalType *type) : is_list(true) {
+    list.push_back(new MalAtom(macro));
+    list.push_back(type);
+}
 
 MalList::~MalList() {
     for (auto type: list) {
@@ -78,10 +85,4 @@ MalHashMap::~MalHashMap() {
         delete key;
         delete value;
     }
-}
-
-MalMacro::MalMacro(const std::string &macroName, MalType *type) : macro_name(macroName), type(type) {}
-
-std::string MalMacro::toString() const {
-    return "(" + macro_name + " " + type->toString() + ")";
 }

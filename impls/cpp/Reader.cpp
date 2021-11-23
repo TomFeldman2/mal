@@ -83,19 +83,28 @@ MalType* readFrom(Reader &reader) {
         return readMap(reader);
 
     if (reader.match("'"))
-        return new MalMacro("quote", readFrom(reader));
+        return new MalList("quote", readFrom(reader));
 
     if (reader.match("`"))
-        return new MalMacro("quasiquote", readFrom(reader));
+        return new MalList("quasiquote", readFrom(reader));
 
     if (reader.match("~"))
-        return new MalMacro("unquote", readFrom(reader));
+        return new MalList("unquote", readFrom(reader));
 
     if (reader.match("@"))
-        return new MalMacro("deref", readFrom(reader));
+        return new MalList("deref", readFrom(reader));
 
     if (reader.match("~@"))
-        return new MalMacro("splice-unquote", readFrom(reader));
+        return new MalList("splice-unquote", readFrom(reader));
+
+    if (reader.match("^")) {
+        auto second = readFrom(reader);
+        auto first = readFrom(reader);
+        auto list = new MalList("with-meta", first);
+        list->append(second);
+        return list;
+    }
+
 
     return readAtom(reader);
 }

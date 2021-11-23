@@ -20,9 +20,10 @@ struct MalType {
 
 class MalAtom : public MalType {
 protected:
-    const std::string_view value;
+    const std::string value;
 
 public:
+    explicit MalAtom(const std::string &value);
     explicit MalAtom(const std::string_view &value);
 
     std::string toString() const override;
@@ -45,7 +46,8 @@ private:
     const bool is_list;
 
 public:
-    explicit MalList(const bool isList);
+    explicit MalList(bool isList);
+    MalList(const std::string &macro, MalType *type);
 
     virtual ~MalList();
 
@@ -70,17 +72,6 @@ public:
     ~MalHashMap();
 
 
-};
-
-class MalMacro : public MalType {
-private:
-    const std::string macro_name;
-    MalType *type;
-
-public:
-    MalMacro(const std::string &macroName, MalType *type);
-
-    std::string toString() const override;
 };
 
 #endif //MAL_TYPES_H
