@@ -15,7 +15,8 @@
 struct MalType {
     enum class Type {
         NIL,
-        Iterable,
+        List,
+        Vector,
         Map,
         Integer,
         String,
@@ -131,37 +132,22 @@ public:
     Type getType() const override;
 };
 
-template<typename T>
-class MalFunc;
-
-template<typename R, typename ...Args>
-class MalFunc<std::function<R(Args...)>> : public MalType {
-private:
-    std::function<R(Args...)> func;
-
+class MalFunc : public MalType {
 public:
-    explicit MalFunc(const std::function<R(Args...)> &func) : func(func) {}
+    using FuncType = std::function<std::shared_ptr<MalType>(std::shared_ptr<MalList>)>;
+
+    explicit MalFunc(const FuncType &func);
 
     std::string toString() const override;
 
     Type getType() const override;
 
-    R operator()(Args...);
+    std::shared_ptr<MalType> operator()(const std::shared_ptr<MalList> &vec) const;
+private:
+    FuncType func;
 };
 
-template<typename R, typename... Args>
-std::string MalFunc<std::function<R(Args...)>>::toString() const {
-    return "MalFunc";
-}
 
-template<typename R, typename... Args>
-MalType::Type MalFunc<std::function<R(Args...)>>::getType() const {
-    return MalType::Type::Function;
-}
 
-template<typename R, typename... Args>
-R MalFunc<std::function<R(Args...)>>::operator()(Args... args) {
-    return func(args...);
-}
 
 #endif //MAL_TYPES_H

@@ -30,7 +30,7 @@ std::string MalString::toString() const {
 }
 
 MalType::Type MalString::getType() const {
-    return MalType::Type::String;
+    return Type::String;
 }
 
 
@@ -43,7 +43,7 @@ std::string MalSymbol::toString() const {
 }
 
 MalType::Type MalSymbol::getType() const {
-    return MalType::Type::Symbol;
+    return Type::Symbol;
 }
 
 
@@ -91,7 +91,7 @@ MalList::iterator MalList::end() const {
 }
 
 MalType::Type MalList::getType() const {
-    return MalType::Type::Iterable;
+    return is_list ? Type::List : Type::Vector;
 }
 
 MalList::value_type const &MalList::at(size_t n) const {
@@ -128,7 +128,7 @@ std::string MalHashMap::pairToString(const std::pair<std::shared_ptr<MalType>, s
 }
 
 MalType::Type MalHashMap::getType() const {
-    return MalType::Type::Map;
+    return Type::Map;
 }
 
 MalHashMap::iterator MalHashMap::begin() const {
@@ -142,5 +142,26 @@ MalHashMap::iterator MalHashMap::end() const {
 MalHashMap::iterator MalHashMap::insert(MalHashMap::iterator position, const MalHashMap::value_type &val) {
     return hash_map.insert(position, val);
 }
+
+/**
+ *
+ * MalFunc
+ *
+ */
+
+MalFunc::MalFunc(const MalFunc::FuncType &func) : func(func) {}
+
+std::string MalFunc::toString() const {
+    return "MalFunc";
+}
+
+MalType::Type MalFunc::getType() const {
+    return Type::Function;
+}
+
+std::shared_ptr<MalType> MalFunc::operator()(const std::shared_ptr<MalList> &vec) const{
+    return func(vec);
+}
+
 
 

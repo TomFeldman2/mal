@@ -6,17 +6,14 @@
 #define MAL_REP_H
 
 #include "types.h"
-
-using Func = std::function<std::shared_ptr<MalType>(const std::shared_ptr<MalList> &)>;
-using EnvValue = MalFunc<Func>;
-using Env = std::map<std::string, std::shared_ptr<EnvValue>>;
+#include "Environment.h"
 
 std::shared_ptr<MalType> READ(const std::string &input);
 
-std::shared_ptr<MalType> EVAL(const std::shared_ptr<MalType> &ast, const Env &env);
+std::shared_ptr<MalType> EVAL(const std::shared_ptr<MalType> &ast, Environment &env);
 
 std::string PRINT(const std::shared_ptr<MalType> &ast);
 
-std::string rep(const std::string &input);
+std::string rep(const std::string &input, Environment &env);
 
 #endif //MAL_REP_H

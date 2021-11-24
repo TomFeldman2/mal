@@ -12,8 +12,8 @@
 
 int main() {
     const auto history_path = "history.txt";
-
     linenoise::LoadHistory(history_path);
+
     std::string input;
     while (true) {
         auto quit = linenoise::Readline("user> ", input);
@@ -23,7 +23,7 @@ int main() {
         }
 
         try {
-            std::cout << rep(input) << std::endl;
+            std::cout << rep(input, env) << std::endl;
         } catch (const Error &e) {
             std::cout << e.what() << std::endl;
         } catch (const Reader::Comment &) {}
