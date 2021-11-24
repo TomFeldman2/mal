@@ -24,7 +24,7 @@ int main() {
 
         try {
             std::cout << rep(input) << std::endl;
-        } catch (const std::exception &e) {
+        } catch (const Error &e) {
             std::cout << e.what() << std::endl;
         } catch (const Reader::Comment &) {}
         linenoise::AddHistory(input.c_str());

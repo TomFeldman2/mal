@@ -6,6 +6,7 @@
 #include <cassert>
 #include "rep.h"
 #include "Reader.h"
+#include "Error.h"
 
 std::shared_ptr<MalType> evalAst(const std::shared_ptr<MalType> &ast, const Env &env);
 
@@ -30,8 +31,15 @@ std::shared_ptr<MalType> EVAL(const std::shared_ptr<MalType> &ast, const Env &en
 
 std::shared_ptr<MalType> evalAst(const std::shared_ptr<MalType> &ast, const Env &env) {
     switch (ast->getType()) {
-        case MalType::Type::Symbol:
-            return env.at(std::static_pointer_cast<MalSymbol>(ast)->value);
+        case MalType::Type::Symbol: {
+            const auto value = std::static_pointer_cast<MalSymbol>(ast)->value;
+            try {
+                return env.at(value);
+            } catch (const std::out_of_range &) {
+                throw Error(value + " wasn't found");
+            }
+        }
+
 
         case MalType::Type::Iterable:
             return evalList(std::static_pointer_cast<MalList>(ast), env);
