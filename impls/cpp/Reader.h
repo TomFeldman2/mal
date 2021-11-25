@@ -37,9 +37,9 @@ public:
 
 std::vector<std::string_view> tokenize(const std::string &input);
 
-std::shared_ptr<MalType> readStr(const std::string &input);
+std::shared_ptr<MalObject> readStr(const std::string &input);
 
-std::shared_ptr<MalType> readFrom(Reader &reader);
+std::shared_ptr<MalObject> readFrom(Reader &reader);
 
 std::shared_ptr<MalList> readList(Reader &reader, bool is_list);
 

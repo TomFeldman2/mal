@@ -44,7 +44,7 @@ bool Reader::matchComment() {
  *
  */
 
-std::shared_ptr<MalType> readStr(const std::string &input) {
+std::shared_ptr<MalObject> readStr(const std::string &input) {
     Reader reader{tokenize(input)};
     return readFrom(reader);
 }
@@ -64,7 +64,7 @@ std::vector<std::string_view> tokenize(const std::string &input) {
     return tokens;
 }
 
-std::shared_ptr<MalType> readFrom(Reader &reader) {
+std::shared_ptr<MalObject> readFrom(Reader &reader) {
 
     if (reader.matchComment()) {
         throw Reader::Comment();
@@ -153,5 +153,15 @@ std::shared_ptr<MalAtom> readAtom(Reader &reader) {
         auto type =  std::make_shared<MalString>(token);
         return type;
     }
+
+    if (token == "nil"){
+        return MalNil::getInstance();
+    }
+
+    const bool is_true = token == "true";
+    if (is_true or token == "false") {
+        return MalBool::getInstance(is_true);
+    }
+
     return std::make_shared<MalSymbol>(token);
 }

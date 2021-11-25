@@ -11,29 +11,67 @@
 #include <string_view>
 #include <map>
 #include <memory>
+#include <ostream>
 
-struct MalType {
+struct MalObject {
     enum class Type {
         NIL,
-        List,
-        Vector,
-        Map,
-        Integer,
-        String,
-        Symbol,
-        Function,
+        BOOLEAN,
+        LIST,
+        VECTOR,
+        MAP,
+        INTEGER,
+        STRING,
+        SYMBOL,
+        FUNCTION,
     };
 
     virtual std::string toString() const = 0;
 
     virtual Type getType() const = 0;
 
-    virtual ~MalType() = default;
+    virtual bool isTrue() const;
+
+    virtual ~MalObject() = default;
+
+    bool operator==(const MalObject &other) const;
+
+    friend std::ostream &operator<<(std::ostream &os, const MalObject &object);
+
+private:
+    static bool areSameTypes(const MalObject &first, const MalObject &second);
+
+    virtual bool equals(const MalObject &other) const = 0;
+
 };
 
 
-struct MalAtom : public MalType {
+struct MalAtom : public MalObject {
 };
+
+struct MalNil : public MalAtom {
+public:
+    MalNil(const MalNil &) = delete;
+
+    void operator=(const MalNil &) = delete;
+
+    static const std::shared_ptr<MalNil> &getInstance();
+
+    std::string toString() const override;
+
+    Type getType() const override;
+
+    bool isTrue() const override;
+
+private:
+    static std::shared_ptr<MalNil> nil;
+
+    explicit MalNil() = default;
+
+    bool equals(const MalObject &other) const override;
+
+};
+
 
 class MalInt : public MalAtom {
 public:
@@ -45,6 +83,10 @@ public:
     std::string toString() const override;
 
     Type getType() const override;
+
+private:
+
+    bool equals(const MalObject &other) const override;
 
 };
 
@@ -58,6 +100,9 @@ struct MalString : public MalAtom {
 
     Type getType() const override;
 
+private:
+
+    bool equals(const MalObject &other) const override;
 };
 
 struct MalSymbol : public MalAtom {
@@ -72,11 +117,62 @@ struct MalSymbol : public MalAtom {
 
     Type getType() const override;
 
+private:
+
+    bool equals(const MalObject &other) const override;
+
 };
 
-class MalList : public MalType {
+struct MalBool : public MalAtom {
+    Type getType() const override;
+
+    static std::shared_ptr<MalBool> getInstance(bool value);
+
 private:
-    std::vector<std::shared_ptr<MalType>> list;
+
+    bool equals(const MalObject &other) const override;
+};
+
+struct MalTrue : public MalBool {
+public:
+    MalTrue(const MalTrue &) = delete;
+
+    void operator=(const MalTrue &) = delete;
+
+    static const std::shared_ptr<MalTrue> &getInstance();
+
+    std::string toString() const override;
+
+private:
+    explicit MalTrue() = default;
+
+    static std::shared_ptr<MalTrue> true_instance;
+};
+
+
+struct MalFalse : public MalBool {
+public:
+    MalFalse(const MalFalse &) = delete;
+
+    void operator=(const MalFalse &) = delete;
+
+    static const std::shared_ptr<MalFalse> &getInstance();
+
+    std::string toString() const override;
+
+    bool isTrue() const;
+
+private:
+    explicit MalFalse() = default;
+
+    static std::shared_ptr<MalFalse> false_instance;
+};
+
+class MalList : public MalObject {
+private:
+    std::vector<std::shared_ptr<MalObject>> list;
+
+    bool equals(const MalObject &other) const override;
 
 public:
     using value_type = typename decltype(list)::value_type;
@@ -87,7 +183,7 @@ public:
 
     explicit MalList(bool isList);
 
-    MalList(const std::string &macro, const std::shared_ptr<MalType> &type);
+    MalList(const std::string &macro, const std::shared_ptr<MalObject> &type);
 
     iterator begin() const;
 
@@ -95,7 +191,7 @@ public:
 
     std::string toString() const override;
 
-    void push_back(const std::shared_ptr<MalType> &type);
+    void push_back(const std::shared_ptr<MalObject> &type);
 
     const value_type &at(size_t n) const;
 
@@ -106,11 +202,14 @@ public:
     Type getType() const override;
 };
 
-class MalHashMap : public MalType {
+class MalHashMap : public MalObject {
 private:
-    std::map<std::shared_ptr<MalType>, std::shared_ptr<MalType>> hash_map;
+    std::map<std::shared_ptr<MalObject>, std::shared_ptr<MalObject>> hash_map;
 
-    static std::string pairToString(const std::pair<std::shared_ptr<MalType>, std::shared_ptr<MalType>> &pair) ;
+    static std::string pairToString(const std::pair<std::shared_ptr<MalObject>, std::shared_ptr<MalObject>> &pair);
+
+    bool equals(const MalObject &other) const override;
+
 
 public:
     using value_type = typename decltype(hash_map)::value_type;
@@ -121,7 +220,7 @@ public:
 
     void insert(const value_type &pair);
 
-    iterator insert (iterator position, const value_type& val);
+    iterator insert(iterator position, const value_type &val);
 
     std::string toString() const override;
 
@@ -130,11 +229,12 @@ public:
     iterator end() const;
 
     Type getType() const override;
+
 };
 
-class MalFunc : public MalType {
+class MalFunc : public MalObject {
 public:
-    using FuncType = std::function<std::shared_ptr<MalType>(std::shared_ptr<MalList>)>;
+    using FuncType = std::function<std::shared_ptr<MalObject>(std::shared_ptr<MalList>)>;
 
     explicit MalFunc(const FuncType &func);
 
@@ -142,12 +242,14 @@ public:
 
     Type getType() const override;
 
-    std::shared_ptr<MalType> operator()(const std::shared_ptr<MalList> &vec) const;
+    std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const;
+
 private:
-    FuncType func;
+    const FuncType func;
+
+    bool equals(const MalObject &other) const override;
+
 };
-
-
 
 
 #endif //MAL_TYPES_H
