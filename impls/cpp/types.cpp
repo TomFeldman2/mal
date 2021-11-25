@@ -5,6 +5,7 @@
 #include <numeric>
 #include <algorithm>
 #include <iostream>
+#include <cassert>
 #include "types.h"
 
 /**
@@ -23,12 +24,16 @@ bool MalObject::operator==(const MalObject &other) const {
 }
 
 bool MalObject::areSameTypes(const MalObject &first, const MalObject &second) {
-    return first.getType() == second.getType();
+    return first.getType() == second.getType() or (first.isListLike() and second.isListLike());
 }
 
 std::ostream &operator<<(std::ostream &os, const MalObject &object) {
     os << object.toString();
     return os;
+}
+
+bool MalObject::isListLike() const {
+    return false;
 }
 
 
@@ -40,7 +45,7 @@ std::ostream &operator<<(std::ostream &os, const MalObject &object) {
 
 std::shared_ptr<MalNil> MalNil::nil = nullptr;
 
-std::string MalNil::toString() const {
+std::string MalNil::toString(const bool readable) const {
     return "nil";
 }
 
@@ -56,7 +61,7 @@ const std::shared_ptr<MalNil> &MalNil::getInstance() {
     if (nil) {
         return nil;
     }
-    nil =  std::shared_ptr<MalNil>(new MalNil());
+    nil = std::shared_ptr<MalNil>(new MalNil());
     return nil;
 }
 
@@ -73,7 +78,7 @@ bool MalNil::equals(const MalObject &other) const {
 MalInt::MalInt(const int value) : value(value) {}
 
 
-std::string MalInt::toString() const {
+std::string MalInt::toString(const bool readable) const {
     return std::to_string(value);
 }
 
@@ -91,10 +96,67 @@ bool MalInt::equals(const MalObject &other) const {
  *
  */
 
-MalString::MalString(const std::string_view &value) : value(value) {}
+MalString::MalString(const std::string &value) : value(value) {}
 
-std::string MalString::toString() const {
-    return std::string(value);
+MalString::MalString(const std::string_view &value) : value(transformString(value)) {}
+
+std::string MalString::transformString(const std::string_view &str) {
+    std::string transformed_str;
+    bool is_escaped = false;
+    size_t i;
+    for (i = 1; i < str.size() - 1; ++i) {
+        if (str[i] == '\\' and not is_escaped) {
+            is_escaped = true;
+            continue;
+        }
+
+        if (is_escaped) {
+            is_escaped = false;
+            switch (str[i]) {
+                case '\\':
+                case '"':
+                    transformed_str += str[i];
+                    break;
+                case 'n':
+                    transformed_str += '\n';
+                    break;
+                default:
+                    transformed_str += '\\' + str[i];
+            }
+        } else {
+            transformed_str += str[i];
+        }
+
+
+    }
+
+    return transformed_str;
+}
+
+std::string MalString::toString(const bool readable) const {
+    if (not readable) {
+        return  value;
+    }
+
+    std::string readable_str;
+
+    for (size_t i = 0; i < value.size(); ++i) {
+        switch (value[i]) {
+            case '\\':
+            case '"':
+                readable_str += '\\';
+                readable_str += value[i];
+                break;
+            case '\n':
+                readable_str += "\\n";
+                break;
+            default:
+                readable_str += value[i];
+        }
+
+    }
+
+    return '"' + readable_str + '"';
 }
 
 MalObject::Type MalString::getType() const {
@@ -115,7 +177,7 @@ MalSymbol::MalSymbol(const std::string &value) : value(value) {}
 
 MalSymbol::MalSymbol(const std::string_view &value) : value(std::string(value)) {}
 
-std::string MalSymbol::toString() const {
+std::string MalSymbol::toString(const bool readable) const {
     return value;
 }
 
@@ -126,6 +188,27 @@ MalObject::Type MalSymbol::getType() const {
 bool MalSymbol::equals(const MalObject &other) const {
     return static_cast<const MalSymbol &>(other).value == value;
 }
+
+/**
+ *
+ * MalKeyword
+ *
+ */
+
+MalKeyword::MalKeyword(const std::string_view &value) : value(value) {}
+
+std::string MalKeyword::toString(const bool readable) const {
+    return std::string(value);
+}
+
+MalObject::Type MalKeyword::getType() const {
+    return Type::KEYWORD;
+}
+
+bool MalKeyword::equals(const MalObject &other) const {
+    return value == static_cast<const MalKeyword &>(other).value;
+}
+
 
 /**
  *
@@ -146,7 +229,7 @@ std::shared_ptr<MalBool> MalBool::getInstance(const bool value) {
 
 }
 
-bool MalBool::equals(const MalObject& other) const {
+bool MalBool::equals(const MalObject &other) const {
     return isTrue() == other.isTrue();
 }
 
@@ -158,7 +241,7 @@ bool MalBool::equals(const MalObject& other) const {
 
 std::shared_ptr<MalTrue> MalTrue::true_instance = nullptr;
 
-std::string MalTrue::toString() const {
+std::string MalTrue::toString(const bool readable) const {
     return "true";
 }
 
@@ -166,7 +249,7 @@ const std::shared_ptr<MalTrue> &MalTrue::getInstance() {
     if (true_instance) {
         return true_instance;
     }
-    true_instance =  std::shared_ptr<MalTrue>(new MalTrue());
+    true_instance = std::shared_ptr<MalTrue>(new MalTrue());
     return true_instance;
 }
 
@@ -179,7 +262,7 @@ const std::shared_ptr<MalTrue> &MalTrue::getInstance() {
 
 std::shared_ptr<MalFalse> MalFalse::false_instance = nullptr;
 
-std::string MalFalse::toString() const {
+std::string MalFalse::toString(const bool readable) const {
     return "false";
 }
 
@@ -191,7 +274,7 @@ const std::shared_ptr<MalFalse> &MalFalse::getInstance() {
     if (false_instance) {
         return false_instance;
     }
-    false_instance =  std::shared_ptr<MalFalse>(new MalFalse());
+    false_instance = std::shared_ptr<MalFalse>(new MalFalse());
     return false_instance;
 }
 
@@ -204,7 +287,7 @@ const std::shared_ptr<MalFalse> &MalFalse::getInstance() {
 
 MalList::MalList(const bool isList) : is_list(isList) {}
 
-MalList::MalList(const std::string &macro,const std::shared_ptr<MalObject> &type) : is_list(true) {
+MalList::MalList(const std::string &macro, const std::shared_ptr<MalObject> &type) : is_list(true) {
     list.push_back(std::make_shared<MalSymbol>(macro));
     list.push_back(type);
 }
@@ -214,14 +297,13 @@ void MalList::push_back(const std::shared_ptr<MalObject> &type) {
     list.push_back(type);
 }
 
-std::string MalList::toString() const {
+std::string MalList::toString(const bool readable) const {
     const auto open = is_list ? "(" : "[";
     const auto close = is_list ? ")" : "]";
     std::string list_str;
 
     if (not list.empty()) {
-        list_str = std::accumulate(std::next(list.begin()), list.end(), list[0]->toString(),
-                                   [](std::string &str, auto type) { return str + " " + type->toString(); });
+        list_str = joinElements(true, readable);
     }
 
     return open + list_str + close;
@@ -255,7 +337,22 @@ bool MalList::equals(const MalObject &other) const {
     auto other_list = static_cast<const MalList &>(other);
     if (size() != other_list.size()) return false;
 
-    return std::equal(begin(), end(), other_list.begin(), [](auto first, auto second){ return *first == *second; });
+    return std::equal(begin(), end(), other_list.begin(), [](auto first, auto second) { return *first == *second; });
+}
+
+std::string MalList::joinElements(bool include_first, const bool readable, const std::string &delimiter) const {
+    if (not include_first and list.size() == 1) return "";
+    auto begin = include_first ? std::next(list.begin()) : std::next(std::next(list.begin()));
+    size_t start_index = include_first ? 0 : 1;
+
+    return std::accumulate(begin, list.end(), list[start_index]->toString(readable),
+                           [&delimiter, &readable](std::string &str, auto type) {
+                               return str + delimiter + type->toString(readable);
+                           });
+}
+
+bool MalList::isListLike() const {
+    return true;
 }
 
 /**
@@ -268,7 +365,7 @@ void MalHashMap::insert(const value_type &pair) {
     hash_map.insert(pair);
 }
 
-std::string MalHashMap::toString() const {
+std::string MalHashMap::toString(const bool readable) const {
     std::string map_str;
     if (not hash_map.empty()) {
         map_str = std::accumulate(std::next(hash_map.begin()), hash_map.end(), pairToString(*hash_map.begin()),
@@ -304,9 +401,9 @@ bool MalHashMap::equals(const MalObject &other) const {
     if (hash_map.size() != other_map.hash_map.size()) return false;
 
     return std::equal(begin(), end(), other_map.begin(),
-          [](auto pair1, auto pair2){
-                    return (*pair1.first == *pair2.first) and (*pair1.second == *pair2.second);
-                    });
+                      [](auto pair1, auto pair2) {
+                          return (*pair1.first == *pair2.first) and (*pair1.second == *pair2.second);
+                      });
 }
 
 /**
@@ -317,7 +414,7 @@ bool MalHashMap::equals(const MalObject &other) const {
 
 MalFunc::MalFunc(const MalFunc::FuncType &func) : func(func) {}
 
-std::string MalFunc::toString() const {
+std::string MalFunc::toString(const bool readable) const {
     return "#<function>";
 }
 
@@ -325,7 +422,7 @@ MalObject::Type MalFunc::getType() const {
     return Type::FUNCTION;
 }
 
-std::shared_ptr<MalObject> MalFunc::operator()(const std::shared_ptr<MalList> &vec) const{
+std::shared_ptr<MalObject> MalFunc::operator()(const std::shared_ptr<MalList> &vec) const {
     return func(vec);
 }
 

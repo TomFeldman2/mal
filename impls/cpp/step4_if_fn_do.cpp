@@ -45,10 +45,26 @@ int main() {
 
     auto prn_func = std::make_shared<MalFunc>(
             [](auto list) {
-                assert(list->size() > 1);
-                std::cout << list->at(1)->toString() << std::endl;
+                std::cout << list->joinElements(false) << std::endl;
                 return MalNil::getInstance();
             });
+
+    auto println_func = std::make_shared<MalFunc>(
+            [](auto list) {
+                std::cout << list->joinElements(false, false) << std::endl;
+                return MalNil::getInstance();
+            });
+
+    auto prn_str_func = std::make_shared<MalFunc>(
+            [](auto list) {
+                return std::make_shared<MalString>(list->joinElements(false));
+            });
+
+    auto str_func = std::make_shared<MalFunc>(
+            [](auto list) {
+                return std::make_shared<MalString>(list->joinElements(false, false, ""));
+            });
+
 
     auto list_func = std::make_shared<MalFunc>(
             [](auto list) {
@@ -124,6 +140,9 @@ int main() {
     env->insert({"*", mul_func});
     env->insert({"/", div_func});
     env->insert({"prn", prn_func});
+    env->insert({"pr-str", prn_str_func});
+    env->insert({"println", println_func});
+    env->insert({"str", str_func});
     env->insert({"list", list_func});
     env->insert({"list?", is_list_func});
     env->insert({"empty?", is_empty_func});
@@ -134,6 +153,7 @@ int main() {
     env->insert({"<", lt_func});
     env->insert({"<=", lte_func});
 
+    rep("(def! not (fn* (a) (if a false true)))", env);
 
     std::string input;
     while (true) {

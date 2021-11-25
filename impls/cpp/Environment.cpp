@@ -10,10 +10,25 @@ Environment::Environment(const std::shared_ptr<Environment> &outer) : outer(oute
 
 Environment::Environment(const std::shared_ptr<Environment> &outer, const std::shared_ptr<MalList> &binds,
                          const std::shared_ptr<MalList> &exprs) : outer(outer) {
-    assert(binds->size() == exprs->size() - 1);
-    for (size_t i = 0; i < binds->size(); ++i) {
+
+    size_t i;
+    for (i = 0; i < binds->size(); ++i) {
         auto symbol = std::dynamic_pointer_cast<MalSymbol>(binds->at(i));
+        if (symbol->value == "&") break;
+
+        assert(i + 1 < exprs->size());
         insert({symbol->value, exprs->at(i + 1)});
+    }
+
+    if (i != binds->size()) {
+        assert(i + 2 == binds->size());
+        auto symbol = std::dynamic_pointer_cast<MalSymbol>(binds->at(++i));
+
+        auto list = std::make_shared<MalList>(true);
+        for (; i < exprs->size(); ++i) {
+            list->push_back(exprs->at(i));
+        }
+        insert({symbol->value, list});
     }
 }
 

@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -g -Wall -Wextra
+CXXFLAGS = -std=c++17 -g -Wall -Wextra -Wno-unused-parameter
 
 build: step4_if_fn_do
 

@@ -23,10 +23,10 @@ struct MalObject {
         INTEGER,
         STRING,
         SYMBOL,
+        KEYWORD,
         FUNCTION,
     };
 
-    virtual std::string toString() const = 0;
 
     virtual Type getType() const = 0;
 
@@ -38,8 +38,12 @@ struct MalObject {
 
     friend std::ostream &operator<<(std::ostream &os, const MalObject &object);
 
+    virtual std::string toString(bool readable = true) const = 0;
+
 private:
     static bool areSameTypes(const MalObject &first, const MalObject &second);
+
+    virtual bool isListLike() const;
 
     virtual bool equals(const MalObject &other) const = 0;
 
@@ -57,7 +61,7 @@ public:
 
     static const std::shared_ptr<MalNil> &getInstance();
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
     Type getType() const override;
 
@@ -80,27 +84,30 @@ public:
 
     explicit MalInt(int value);
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
     Type getType() const override;
 
 private:
-
     bool equals(const MalObject &other) const override;
 
 };
 
 struct MalString : public MalAtom {
 
-    const std::string_view value;
+    const std::string value;
+
+    explicit MalString(const std::string &value);
 
     explicit MalString(const std::string_view &value);
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
     Type getType() const override;
 
 private:
+
+    static std::string transformString(const std::string_view &str);
 
     bool equals(const MalObject &other) const override;
 };
@@ -113,7 +120,23 @@ struct MalSymbol : public MalAtom {
 
     explicit MalSymbol(const std::string_view &value);
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
+
+    Type getType() const override;
+
+private:
+
+    bool equals(const MalObject &other) const override;
+
+};
+
+struct MalKeyword : public MalAtom {
+
+    const std::string_view value;
+
+    explicit MalKeyword(const std::string_view &value);
+
+    std::string toString(bool readable) const override;
 
     Type getType() const override;
 
@@ -141,7 +164,7 @@ public:
 
     static const std::shared_ptr<MalTrue> &getInstance();
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
 private:
     explicit MalTrue() = default;
@@ -158,7 +181,7 @@ public:
 
     static const std::shared_ptr<MalFalse> &getInstance();
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
     bool isTrue() const;
 
@@ -173,6 +196,8 @@ private:
     std::vector<std::shared_ptr<MalObject>> list;
 
     bool equals(const MalObject &other) const override;
+
+    virtual bool isListLike() const override;
 
 public:
     using value_type = typename decltype(list)::value_type;
@@ -189,7 +214,7 @@ public:
 
     iterator end() const;
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
     void push_back(const std::shared_ptr<MalObject> &type);
 
@@ -200,6 +225,9 @@ public:
     bool empty() const;
 
     Type getType() const override;
+
+    std::string joinElements(bool include_first, bool readable = true, const std::string &delimiter = " ") const;
+
 };
 
 class MalHashMap : public MalObject {
@@ -222,7 +250,7 @@ public:
 
     iterator insert(iterator position, const value_type &val);
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
     iterator begin() const;
 
@@ -238,7 +266,7 @@ public:
 
     explicit MalFunc(const FuncType &func);
 
-    std::string toString() const override;
+    std::string toString(bool readable) const override;
 
     Type getType() const override;
 

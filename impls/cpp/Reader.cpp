@@ -150,8 +150,11 @@ std::shared_ptr<MalAtom> readAtom(Reader &reader) {
     } catch (const std::invalid_argument&) {}
 
     if (token[0] == '"' and token[token.size() - 1] == '"') {
-        auto type =  std::make_shared<MalString>(token);
-        return type;
+        return std::make_shared<MalString>(token);
+    }
+
+    if (token[0] == ':') {
+        return std::make_shared<MalKeyword>(token);
     }
 
     if (token == "nil"){
