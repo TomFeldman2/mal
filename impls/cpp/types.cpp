@@ -408,26 +408,56 @@ bool MalHashMap::equals(const MalObject &other) const {
 
 /**
  *
+ * MalFuncBase
+ *
+ */
+
+
+
+std::string MalFuncBase::toString(const bool readable) const {
+    return "#<function>";
+}
+
+MalObject::Type MalFuncBase::getType() const {
+    return Type::FUNCTION;
+}
+
+bool MalFuncBase::equals(const MalObject &other) const {
+    return this == &other;
+}
+
+bool MalFuncBase::isCoreFunc() const {
+    return true;
+}
+
+/**
+ *
+ * MalCoreFunc
+ *
+ */
+
+MalCoreFunc::MalCoreFunc(const MalCoreFunc::FuncType &func) : func(func) {}
+
+std::shared_ptr<MalObject> MalCoreFunc::operator()(const std::shared_ptr<MalList> &vec) const {
+    return func(vec);
+}
+
+bool MalCoreFunc::isCoreFunc() const {
+    return true;
+}
+
+/**
+ *
  * MalFunc
  *
  */
 
-MalFunc::MalFunc(const MalFunc::FuncType &func) : func(func) {}
 
-std::string MalFunc::toString(const bool readable) const {
-    return "#<function>";
+bool MalFunc::isCoreFunc() const {
+    return false;
 }
 
-MalObject::Type MalFunc::getType() const {
-    return Type::FUNCTION;
-}
-
-std::shared_ptr<MalObject> MalFunc::operator()(const std::shared_ptr<MalList> &vec) const {
-    return func(vec);
-}
-
-bool MalFunc::equals(const MalObject &other) const {
-    return this == &other;
-}
-
-
+MalFunc::MalFunc(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<MalList> &params,
+                 const std::shared_ptr<Environment> &env, const std::shared_ptr<MalCoreFunc> &fn) : ast(ast),
+                                                                                                    params(params),
+                                                                                                    env(env), fn(fn) {}

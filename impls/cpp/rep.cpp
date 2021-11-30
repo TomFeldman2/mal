@@ -19,72 +19,98 @@ std::shared_ptr<MalObject> READ(const std::string &input) {
     return readStr(input);
 }
 
-std::shared_ptr<MalObject> EVAL(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<Environment> &env) {
-    if (ast->getType() == MalObject::Type::LIST) {
-        auto list = std::static_pointer_cast<MalList>(ast);
-        if (list->empty())
-            return ast;
-        
-        if (list->at(0)->getType() == MalObject::Type::SYMBOL) {
-            auto symbol = std::static_pointer_cast<MalSymbol>(list->at(0));
-            
-            if (symbol->value == "def!") {
-                assert(list->size() == 3);
-                auto key = std::dynamic_pointer_cast<MalSymbol>(list->at(1));
-                auto value = EVAL(list->at(2), env);
-                env->insert({key->value, value});
-                return value;
-            }
-            
-            if (symbol->value == "let*") {
-                assert(list->size() == 3);
-                auto new_env = std::make_shared<Environment>(env);
-                auto binding_list = std::dynamic_pointer_cast<MalList>(list->at(1));
-                assert(binding_list->size() % 2 == 0);
-                for(size_t i = 0; i < binding_list->size() / 2; ++i) {
-                    auto key = std::dynamic_pointer_cast<MalSymbol>(binding_list->at(i * 2));
-                    auto value = EVAL(binding_list->at(i*2 + 1), new_env);
-                    new_env->insert({key->value, value});
-                }
-                return EVAL(list->at(2), new_env);
+std::shared_ptr<MalObject> EVAL(std::shared_ptr<MalObject> ast, std::shared_ptr<Environment> env) {
+    while (true) {
+        if (ast->getType() == MalObject::Type::LIST) {
+            auto list = std::static_pointer_cast<MalList>(ast);
+            if (list->empty())
+                return ast;
+
+            if (not list->is_list) {
+                return evalAst(ast, env);
             }
 
-            if (symbol->value == "do") {
-                assert(list->size() > 1);
-                for (size_t i = 1; i < list->size() - 1; ++i) {
-                    EVAL(list->at(i), env);
+            if (list->at(0)->getType() == MalObject::Type::SYMBOL) {
+                auto symbol = std::static_pointer_cast<MalSymbol>(list->at(0));
+
+                if (symbol->value == "def!") {
+                    assert(list->size() == 3);
+                    auto key = std::dynamic_pointer_cast<MalSymbol>(list->at(1));
+                    auto value = EVAL(list->at(2), env);
+                    env->insert({key->value, value});
+                    return value;
                 }
 
-                return EVAL(list->at(list->size() - 1), env);
-            }
+                if (symbol->value == "let*") {
+                    assert(list->size() == 3);
+                    auto new_env = std::make_shared<Environment>(env);
+                    auto binding_list = std::dynamic_pointer_cast<MalList>(list->at(1));
+                    assert(binding_list->size() % 2 == 0);
+                    for (size_t i = 0; i < binding_list->size() / 2; ++i) {
+                        auto key = std::dynamic_pointer_cast<MalSymbol>(binding_list->at(i * 2));
+                        auto value = EVAL(binding_list->at(i * 2 + 1), new_env);
+                        new_env->insert({key->value, value});
+                    }
 
-            if (symbol->value == "if") {
-                auto size = list->size();
-                assert(size == 3 or size == 4);
-                auto condition = EVAL(list->at(1), env);
-                if (condition->isTrue()) {
-                    return EVAL(list->at(2), env);
+                    ast = list->at(2);
+                    env = new_env;
+                    continue;
                 }
 
-                if (size == 3) return MalNil::getInstance();
-                return EVAL(list->at(3), env);
+                if (symbol->value == "do") {
+                    assert(list->size() > 1);
+                    for (size_t i = 1; i < list->size() - 1; ++i) {
+                        EVAL(list->at(i), env);
+                    }
+
+                    ast = list->at(list->size() - 1);
+                    continue;
+                }
+
+                if (symbol->value == "if") {
+                    auto size = list->size();
+                    assert(size == 3 or size == 4);
+                    auto condition = EVAL(list->at(1), env);
+                    if (condition->isTrue()) {
+                        ast = list->at(2);
+                        continue;
+                    }
+
+                    if (size == 3) return MalNil::getInstance();
+                    ast = list->at(3);
+                    continue;
+                }
+
+                if (symbol->value == "fn*") {
+                    assert(list->size() == 3);
+
+                    auto params = std::dynamic_pointer_cast<MalList>(list->at(1));
+                    auto body = list->at(2);
+
+                    auto func = [=](const auto &exprs) {
+                        auto closure = std::make_shared<Environment>(env, params, exprs);
+                        return EVAL(body, closure);
+                    };
+
+                    auto fn = std::make_shared<MalCoreFunc>(func);
+                    return std::make_shared<MalFunc>(body, params, env, fn);
+                }
+
             }
-
-            if (symbol->value == "fn*") {
-                assert(list->size() == 3);
-
-                auto func = [=](const auto &exprs){
-                    auto  closure = std::make_shared<Environment>(env, std::dynamic_pointer_cast<MalList>(list->at(1)), exprs);
-                    return EVAL(list->at(2), closure);
-                };
-
-                return std::make_shared<MalFunc>(func);
+            auto eval_list = std::static_pointer_cast<MalList>(evalAst(ast, env));
+            auto func = std::static_pointer_cast<MalFuncBase>(eval_list->at(0));
+            if (func->isCoreFunc()) {
+                auto core_func = std::static_pointer_cast<MalCoreFunc>(func);
+                return (*core_func)(eval_list);
             }
+            auto defined_func = std::static_pointer_cast<MalFunc>(func);
+            ast = defined_func->ast;
+            env = std::make_shared<Environment>(defined_func->env, defined_func->params, eval_list);
+        }
+        else {
+            return evalAst(ast, env);
         }
     }
-
-    auto result = evalAst(ast, env);
-    return result;
 }
 
 std::shared_ptr<MalObject> evalAst(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<Environment> &env) {
@@ -93,14 +119,8 @@ std::shared_ptr<MalObject> evalAst(const std::shared_ptr<MalObject> &ast, const 
             return env->at(std::static_pointer_cast<MalSymbol>(ast)->value);
 
         case MalObject::Type::LIST:
-        case MalObject::Type::VECTOR: {
-            auto eval_list = evalList(std::static_pointer_cast<MalList>(ast), env);
-            if (eval_list->is_list) {
-                auto func = std::static_pointer_cast<MalFunc>(eval_list->at(0));
-                return (*func)(eval_list);
-            }
-            return eval_list;
-        }
+        case MalObject::Type::VECTOR:
+            return evalList(std::static_pointer_cast<MalList>(ast), env);
 
         case MalObject::Type::MAP:
             return evalMap(std::static_pointer_cast<MalHashMap>(ast), env);

@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -g -Wall -Wextra -Wno-unused-parameter
 
-build: step4_if_fn_do
+build: step5_tco
 
 clean:
 	rm -f step0_repl step1_read_print step2_eval step3_env step4_if_fn_do
@@ -15,5 +15,8 @@ clean:
 #step3_env: step3_env.cpp rep.cpp Environment.cpp Lexer.cpp Reader.cpp types.cpp Error.cpp
 #	$(CXX) $(CXXFLAGS) -o $@ $^
 
-step4_if_fn_do: step4_if_fn_do.cpp rep.cpp Environment.cpp Lexer.cpp Reader.cpp types.cpp Error.cpp
+#step4_if_fn_do: step4_if_fn_do.cpp rep.cpp Environment.cpp Lexer.cpp Reader.cpp types.cpp Error.cpp
+#	$(CXX) $(CXXFLAGS) -o $@ $^
+
+step5_tco: step5_tco.cpp rep.cpp Environment.cpp Lexer.cpp Reader.cpp types.cpp Error.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^

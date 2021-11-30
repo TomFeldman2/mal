@@ -260,22 +260,48 @@ public:
 
 };
 
-class MalFunc : public MalObject {
+class MalFuncBase : public MalObject {
 public:
-    using FuncType = std::function<std::shared_ptr<MalObject>(std::shared_ptr<MalList>)>;
-
-    explicit MalFunc(const FuncType &func);
 
     std::string toString(bool readable) const override;
 
     Type getType() const override;
 
+    virtual bool isCoreFunc() const = 0;
+
+private:
+    bool equals(const MalObject &other) const override;
+
+};
+
+class MalCoreFunc : public MalFuncBase {
+public:
+    using FuncType = std::function<std::shared_ptr<MalObject>(std::shared_ptr<MalList>)>;
+
+    explicit MalCoreFunc(const FuncType &func);
+
     std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const;
+
+    bool isCoreFunc() const;
 
 private:
     const FuncType func;
+};
 
-    bool equals(const MalObject &other) const override;
+class Environment;
+
+struct MalFunc : public MalFuncBase {
+public:
+    const std::shared_ptr<MalObject> ast;
+    const std::shared_ptr<MalList> params;
+    const std::shared_ptr<Environment> env;
+    const std::shared_ptr<MalCoreFunc> fn;
+
+    MalFunc(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<MalList> &params,
+            const std::shared_ptr<Environment> &env, const std::shared_ptr<MalCoreFunc> &fn);
+
+
+    bool isCoreFunc() const override;
 
 };
 
