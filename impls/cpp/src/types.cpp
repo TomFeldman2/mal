@@ -5,8 +5,7 @@
 #include <numeric>
 #include <algorithm>
 #include <iostream>
-#include <cassert>
-#include "types.h"
+#include "../include/types.h"
 
 /**
  *
@@ -36,10 +35,30 @@ bool MalObject::isListLike() const {
     return false;
 }
 
-
 /**
  *
  * MalAtom
+ *
+ */
+
+MalAtom::MalAtom(const std::shared_ptr<MalObject> &object) : object(object) {}
+
+bool MalAtom::equals(const MalObject &other) const {
+    return &other == this;
+}
+
+MalObject::Type MalAtom::getType() const {
+    return Type::ATOM;
+}
+
+std::string MalAtom::toString(const bool readable) const {
+    return "(atom " + object->toString() + ")";
+}
+
+
+/**
+ *
+ * MalValue
  *
  */
 
@@ -461,3 +480,7 @@ MalFunc::MalFunc(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<Ma
                  const std::shared_ptr<Environment> &env, const std::shared_ptr<MalCoreFunc> &fn) : ast(ast),
                                                                                                     params(params),
                                                                                                     env(env), fn(fn) {}
+
+std::shared_ptr<MalObject> MalFunc::operator()(const std::shared_ptr<MalList> &vec) const {
+    return (*fn)(vec);
+}

@@ -3,16 +3,31 @@
 //
 
 #include <iostream>
-#include "linenoise.hpp"
-#include "rep.h"
-#include "Reader.h"
-#include "Error.h"
+#include <cassert>
+#include "../include/linenoise.hpp"
+#include "../include/rep.h"
+#include "../include/Reader.h"
+#include "../include/Error.h"
+#include "../include/core_ns.h"
 
 
-
-int main() {
+int main(int argc, char *argv[]) {
     const auto history_path = "history.txt";
     linenoise::LoadHistory(history_path);
+
+
+    auto env = getCoreEnv();
+
+    if (argc >= 2) {
+        rep("load-file \"" + std::string(argv[1]) + "\"", env);
+    }
+
+    auto mal_argv = std::make_shared<MalList>();
+    for (int i = 2; i < argc; ++i) {
+        mal_argv->push_back(std::make_shared<MalString>(std::string(argv[i])));
+    }
+
+    env->insert({"*ARGV*", mal_argv});
 
     std::string input;
     while (true) {
@@ -31,4 +46,5 @@ int main() {
     }
 
     linenoise::SaveHistory(history_path);
+    return 0;
 }

@@ -2,7 +2,7 @@
 // Created by tomfe on 22/11/2021.
 //
 
-#include "Error.h"
+#include "../include/Error.h"
 
 const char *Error::what() const noexcept {
     return err_msg.c_str();

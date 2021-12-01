@@ -5,9 +5,9 @@
 #include <cassert>
 #include <algorithm>
 #include <iostream>
-#include "Reader.h"
-#include "Lexer.h"
-#include "Error.h"
+#include "../include/Reader.h"
+#include "../include/Lexer.h"
+#include "../include/Error.h"
 
 Reader::Reader(const std::vector<token> &tokens) : tokens(tokens) {}
 
@@ -116,9 +116,7 @@ std::shared_ptr<MalList> readList(Reader &reader, const  bool is_list) {
     while (not reader.match(closing_paren)) {
         try {
             list->push_back(readFrom(reader));
-        } catch (const Reader::Comment) {
-            throw Error(std::string("Encountered comment inside ") + (is_list ? "list" : "vector"));
-        }
+        } catch (const Reader::Comment) {}
     }
     return list;
 
@@ -140,7 +138,7 @@ std::shared_ptr<MalHashMap> readMap(Reader &reader) {
 }
 
 
-std::shared_ptr<MalAtom> readAtom(Reader &reader) {
+std::shared_ptr<MalValue> readAtom(Reader &reader) {
     const auto &token = reader.peek();
     reader.next();
 

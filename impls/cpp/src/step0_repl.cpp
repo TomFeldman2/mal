@@ -3,7 +3,7 @@
 //
 
 #include <iostream>
-#include "../linenoise.hpp"
+#include "../include/linenoise.hpp"
 
 const std::string &READ(const std::string &input) {
     return input;

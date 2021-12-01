@@ -5,9 +5,9 @@
 #include <functional>
 #include <cassert>
 #include <iostream>
-#include "rep.h"
-#include "Reader.h"
-#include "Error.h"
+#include "../include/rep.h"
+#include "../include/Reader.h"
+#include "../include/Error.h"
 
 std::shared_ptr<MalObject> evalAst(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<Environment> &env);
 

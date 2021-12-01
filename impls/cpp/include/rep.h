@@ -10,4 +10,6 @@
 
 std::string rep(const std::string &input, const std::shared_ptr<Environment> &env);
 
+std::shared_ptr<MalObject> EVAL(std::shared_ptr<MalObject> ast, std::shared_ptr<Environment> env);
+
 #endif //MAL_REP_H

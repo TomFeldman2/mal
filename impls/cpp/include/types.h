@@ -25,10 +25,13 @@ struct MalObject {
         SYMBOL,
         KEYWORD,
         FUNCTION,
+        ATOM,
     };
 
 
     virtual Type getType() const = 0;
+
+    virtual std::string toString(bool readable = true) const = 0;
 
     virtual bool isTrue() const;
 
@@ -37,8 +40,6 @@ struct MalObject {
     bool operator==(const MalObject &other) const;
 
     friend std::ostream &operator<<(std::ostream &os, const MalObject &object);
-
-    virtual std::string toString(bool readable = true) const = 0;
 
 private:
     static bool areSameTypes(const MalObject &first, const MalObject &second);
@@ -49,11 +50,26 @@ private:
 
 };
 
+class MalAtom : public MalObject {
+public:
+    std::shared_ptr<MalObject> object;
 
-struct MalAtom : public MalObject {
+    explicit MalAtom(const std::shared_ptr<MalObject> &object);
+
+    Type getType() const override;
+
+    std::string toString(bool readable) const override;
+
+private:
+    bool equals(const MalObject &other) const;
+
 };
 
-struct MalNil : public MalAtom {
+
+struct MalValue : public MalObject {
+};
+
+struct MalNil : public MalValue {
 public:
     MalNil(const MalNil &) = delete;
 
@@ -77,7 +93,7 @@ private:
 };
 
 
-class MalInt : public MalAtom {
+class MalInt : public MalValue {
 public:
     const int value;
 
@@ -93,7 +109,7 @@ private:
 
 };
 
-struct MalString : public MalAtom {
+struct MalString : public MalValue {
 
     const std::string value;
 
@@ -112,7 +128,7 @@ private:
     bool equals(const MalObject &other) const override;
 };
 
-struct MalSymbol : public MalAtom {
+struct MalSymbol : public MalValue {
 
     const std::string value;
 
@@ -130,7 +146,7 @@ private:
 
 };
 
-struct MalKeyword : public MalAtom {
+struct MalKeyword : public MalValue {
 
     const std::string_view value;
 
@@ -146,7 +162,7 @@ private:
 
 };
 
-struct MalBool : public MalAtom {
+struct MalBool : public MalValue {
     Type getType() const override;
 
     static std::shared_ptr<MalBool> getInstance(bool value);
@@ -206,7 +222,7 @@ public:
 
     const bool is_list;
 
-    explicit MalList(bool isList);
+    explicit MalList(bool isList = true);
 
     MalList(const std::string &macro, const std::shared_ptr<MalObject> &type);
 
@@ -269,6 +285,8 @@ public:
 
     virtual bool isCoreFunc() const = 0;
 
+    virtual std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const = 0;
+
 private:
     bool equals(const MalObject &other) const override;
 
@@ -280,7 +298,7 @@ public:
 
     explicit MalCoreFunc(const FuncType &func);
 
-    std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const;
+    std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const override;
 
     bool isCoreFunc() const;
 
@@ -303,6 +321,7 @@ public:
 
     bool isCoreFunc() const override;
 
+    std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const override;
 };
 
 

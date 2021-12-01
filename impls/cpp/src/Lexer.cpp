@@ -4,8 +4,8 @@
 
 #include <cassert>
 #include <iostream>
-#include "Lexer.h"
-#include "Error.h"
+#include "../include/Lexer.h"
+#include "../include/Error.h"
 
 const std::string Lexer::special_chars = "[]{}()'`~\",;";
 

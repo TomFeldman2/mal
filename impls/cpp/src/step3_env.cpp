@@ -4,10 +4,10 @@
 
 #include <iostream>
 #include <cassert>
-#include "linenoise.hpp"
-#include "rep.h"
-#include "Reader.h"
-#include "Error.h"
+#include "../include/linenoise.hpp"
+#include "../include/rep.h"
+#include "../include/Reader.h"
+#include "../include/Error.h"
 
 
 

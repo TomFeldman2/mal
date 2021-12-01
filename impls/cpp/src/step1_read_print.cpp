@@ -3,10 +3,10 @@
 //
 
 #include <iostream>
-#include "linenoise.hpp"
-#include "types.h"
-#include "Reader.h"
-#include "Error.h"
+#include "../include/linenoise.hpp"
+#include "../include/types.h"
+#include "../include/Reader.h"
+#include "../include/Error.h"
 
 MalType *READ(const std::string &input) {
     return readStr(input);

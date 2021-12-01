@@ -45,7 +45,7 @@ std::shared_ptr<MalList> readList(Reader &reader, bool is_list);
 
 std::shared_ptr<MalHashMap> readMap(Reader &reader);
 
-std::shared_ptr<MalAtom> readAtom(Reader &reader);
+std::shared_ptr<MalValue> readAtom(Reader &reader);
 
 
 #endif //MAL_READER_H

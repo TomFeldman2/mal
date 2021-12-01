@@ -3,8 +3,8 @@
 //
 
 #include <cassert>
-#include "Environment.h"
-#include "Error.h"
+#include "../include/Environment.h"
+#include "../include/Error.h"
 
 Environment::Environment(const std::shared_ptr<Environment> &outer) : outer(outer) {}
 
