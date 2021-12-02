@@ -9,7 +9,7 @@
 #include "../include/Reader.h"
 #include "../include/Error.h"
 
-using std::string_literals::operator""s;
+using std::string_literals::operator ""s;
 
 MalObjectPtr evalAst(const MalObjectPtr &ast, const EnvironmentPtr &env);
 
@@ -23,12 +23,16 @@ MalObjectPtr quasiQuote(const MalObjectPtr &object);
 
 MalListPtr quasiQuoteListHandler(const MalListPtr &list);
 
-MalObjectPtr READ(const std::string &input) {
-    return readStr(input);
-}
+MalObjectPtr doDef(EnvironmentPtr &env, const std::shared_ptr<MalList> &list, bool set_macro);
+
+MalFuncPtr isMacroCall(const MalObjectPtr &ast, const EnvironmentPtr &env);
+
+MalObjectPtr macroExpand(MalObjectPtr &ast, const EnvironmentPtr &env);
+
 
 MalObjectPtr EVAL(MalObjectPtr ast, EnvironmentPtr env) {
     while (true) {
+        ast = macroExpand(ast, env);
         if (ast->getType() == MalObject::Type::LIST) {
             auto list = std::static_pointer_cast<MalList>(ast);
             if (list->empty())
@@ -42,11 +46,11 @@ MalObjectPtr EVAL(MalObjectPtr ast, EnvironmentPtr env) {
                 auto symbol = std::static_pointer_cast<MalSymbol>(list->at(0));
 
                 if (symbol->value == "def!") {
-                    assert(list->size() == 3);
-                    auto key = std::dynamic_pointer_cast<MalSymbol>(list->at(1));
-                    auto value = EVAL(list->at(2), env);
-                    env->insert({key->value, value});
-                    return value;
+                    return doDef(env, list, false);
+                }
+
+                if (symbol->value == "defmacro!") {
+                    return doDef(env, list, true);
                 }
 
                 if (symbol->value == "let*") {
@@ -120,6 +124,11 @@ MalObjectPtr EVAL(MalObjectPtr ast, EnvironmentPtr env) {
                     return quasiQuote(list->at(1));
                 }
 
+                if (symbol->value == "macroexpand") {
+                    assert(list->size() >= 2);
+                    auto macro = list->at(1);
+                    return macroExpand(macro, env);
+                }
             }
 
             auto eval_list = std::static_pointer_cast<MalList>(evalAst(ast, env));
@@ -131,11 +140,24 @@ MalObjectPtr EVAL(MalObjectPtr ast, EnvironmentPtr env) {
             auto defined_func = std::static_pointer_cast<MalFunc>(func);
             ast = defined_func->ast;
             env = std::make_shared<Environment>(defined_func->env, defined_func->params, eval_list);
-        }
-        else {
+        } else {
             return evalAst(ast, env);
         }
     }
+}
+
+MalObjectPtr doDef(EnvironmentPtr &env, const std::shared_ptr<MalList> &list, const bool set_macro) {
+    assert(list->size() == 3);
+    auto key = std::dynamic_pointer_cast<MalSymbol>(list->at(1));
+    auto value = EVAL(list->at(2), env);
+    if (set_macro) {
+        auto macro_func = std::dynamic_pointer_cast<MalFunc>(value);
+        assert(macro_func);
+        macro_func->is_macro = true;
+    }
+
+    env->insert({key->value, value});
+    return value;
 }
 
 MalObjectPtr quasiQuote(const MalObjectPtr &object) {
@@ -210,6 +232,37 @@ bool isListStartsWithSymbol(const MalListPtr &list, const std::string &value) {
 
 }
 
+MalFuncPtr isMacroCall(const MalObjectPtr &ast, const EnvironmentPtr &env) {
+        if (ast->getType() != MalObject::Type::LIST) {
+            return nullptr;
+        }
+
+        auto list = std::static_pointer_cast<MalList>(ast);
+
+        if (list->empty() or list->at(0)->getType() != MalObject::Type::SYMBOL) {
+            return nullptr;
+        }
+
+        auto symbol = std::static_pointer_cast<MalSymbol>(list->at(0));
+        try {
+            auto func = std::dynamic_pointer_cast<MalFunc>(env->at(symbol->value));
+            if (func and func->is_macro) {
+                return func;
+            }
+        } catch (const Error&) {}
+
+        return nullptr;
+}
+
+MalObjectPtr macroExpand(MalObjectPtr &ast, const EnvironmentPtr &env) {
+    MalFuncPtr func = isMacroCall(ast, env);
+    while (func) {
+        ast = (*func)(std::static_pointer_cast<MalList>(ast));
+        func = isMacroCall(ast, env);
+    }
+    return ast;
+}
+
 MalObjectPtr evalAst(const MalObjectPtr &ast, const EnvironmentPtr &env) {
     switch (ast->getType()) {
         case MalObject::Type::SYMBOL:
@@ -227,7 +280,6 @@ MalObjectPtr evalAst(const MalObjectPtr &ast, const EnvironmentPtr &env) {
     }
 }
 
-
 MalListPtr evalList(const MalListPtr &list, const EnvironmentPtr &env) {
     auto eval_list = std::make_shared<MalList>(list->is_list);
     std::transform(list->begin(), list->end(), std::back_inserter(*eval_list),
@@ -236,7 +288,6 @@ MalListPtr evalList(const MalListPtr &list, const EnvironmentPtr &env) {
     return eval_list;
 }
 
-
 std::shared_ptr<MalHashMap> evalMap(const std::shared_ptr<MalHashMap> &map, const EnvironmentPtr &env) {
     auto eval_map = std::make_shared<MalHashMap>();
     std::transform(map->begin(), map->end(), std::inserter(*eval_map, eval_map->begin()),
@@ -244,6 +295,9 @@ std::shared_ptr<MalHashMap> evalMap(const std::shared_ptr<MalHashMap> &map, cons
     return eval_map;
 }
 
+MalObjectPtr READ(const std::string &input) {
+    return readStr(input);
+}
 
 std::string PRINT(const MalObjectPtr &ast) {
     auto str = ast->toString();
@@ -256,5 +310,3 @@ std::string rep(const std::string &input, const EnvironmentPtr &env) {
     auto result = EVAL(ast, env);
     return PRINT(result);
 }
-
-

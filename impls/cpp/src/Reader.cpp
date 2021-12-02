@@ -44,7 +44,7 @@ bool Reader::matchComment() {
  *
  */
 
-std::shared_ptr<MalObject> readStr(const std::string &input) {
+MalObjectPtr readStr(const std::string &input) {
     Reader reader{tokenize(input)};
     return readFrom(reader);
 }
@@ -64,7 +64,7 @@ std::vector<std::string_view> tokenize(const std::string &input) {
     return tokens;
 }
 
-std::shared_ptr<MalObject> readFrom(Reader &reader) {
+MalObjectPtr readFrom(Reader &reader) {
 
     if (reader.matchComment()) {
         throw Reader::Comment();
@@ -109,7 +109,7 @@ std::shared_ptr<MalObject> readFrom(Reader &reader) {
     return readAtom(reader);
 }
 
-std::shared_ptr<MalList> readList(Reader &reader, const  bool is_list) {
+MalListPtr readList(Reader &reader, const  bool is_list) {
     auto list = std::make_shared<MalList>(is_list);
 
     const auto closing_paren = is_list ? ")" : "]";
@@ -122,7 +122,7 @@ std::shared_ptr<MalList> readList(Reader &reader, const  bool is_list) {
 
 }
 
-std::shared_ptr<MalHashMap> readMap(Reader &reader) {
+MalHashMapPtr readMap(Reader &reader) {
     auto map = std::make_shared<MalHashMap>();
 
     while (not reader.match("}")) {
@@ -138,7 +138,7 @@ std::shared_ptr<MalHashMap> readMap(Reader &reader) {
 }
 
 
-std::shared_ptr<MalValue> readAtom(Reader &reader) {
+MalObjectPtr readAtom(Reader &reader) {
     const auto &token = reader.peek();
     reader.next();
 

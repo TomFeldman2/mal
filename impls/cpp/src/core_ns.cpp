@@ -8,6 +8,7 @@
 #include "../include/core_ns.h"
 #include "../include/rep.h"
 #include "../include/Reader.h"
+#include "../include/Error.h"
 
 EnvironmentPtr getCoreEnv() {
     auto env = std::make_shared<Environment>();
@@ -145,6 +146,7 @@ EnvironmentPtr getCoreEnv() {
                 return MalBool::getInstance(first->value <= second->value);
             });
 
+    // TODO: maybe the env should be passed as parameter
     auto eval_func = std::make_shared<MalCoreFunc>(
             [&env](auto params) {
                 assert(params->size() == 2);
@@ -213,7 +215,7 @@ EnvironmentPtr getCoreEnv() {
             [](auto params) {
                 auto concat_list = std::make_shared<MalList>();
 
-                for(size_t i = 1; i < params->size(); ++i) {
+                for (size_t i = 1; i < params->size(); ++i) {
                     auto param = params->at(i);
                     auto list = std::dynamic_pointer_cast<MalList>(param);
                     assert(list);
@@ -228,10 +230,56 @@ EnvironmentPtr getCoreEnv() {
                 assert(params->size() == 2);
                 auto list = std::dynamic_pointer_cast<MalList>(params->at(1));
                 assert(list);
-                return list->cloneAsVector();
- ;
+                return list->cloneAsVector();;
             });
 
+    auto nth_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 3);
+                auto list = std::dynamic_pointer_cast<MalList>(params->at(1));
+                assert(list);
+                auto index = std::dynamic_pointer_cast<MalInt>(params->at(2));
+                assert(index);
+                assert(index->value >= 0);
+                if (list->size() <= static_cast<size_t>(index->value)) {
+                    throw Error("Out of bounds in nth function. Got index " + std::to_string(index->value)
+                    + ", but list size is" + std::to_string(list->size()));
+                }
+                return list->at(index->value);
+            });
+
+    auto first_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto param = params->at(1);
+                const auto &nil = std::static_pointer_cast<MalObject>(MalNil::getInstance());
+                if (param == nil) {
+                    return nil;
+                }
+                auto list = std::dynamic_pointer_cast<MalList>(param);
+                assert(list);
+                if (list->empty()) {
+                    return nil;
+                }
+                return list->at(0);
+            });
+
+    auto rest_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto param = params->at(1);
+                auto rest_list = std::make_shared<MalList>();
+                if (param == MalNil::getInstance()) {
+                    return rest_list;
+                }
+                auto list = std::dynamic_pointer_cast<MalList>(param);
+                assert(list);
+                if (not list->empty()) {
+                    rest_list->insert(rest_list->begin(), std::next(list->begin()), list->end());
+                }
+
+                return rest_list;
+            });
 
     env->insert({"+", plus_func});
     env->insert({"-", minus_func});
@@ -261,9 +309,9 @@ EnvironmentPtr getCoreEnv() {
     env->insert({"cons", cons_func});
     env->insert({"concat", concat_func});
     env->insert({"vec", vec_func});
-
-    rep("(def! not (fn* (a) (if a false true)))", env);
-    rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))", env);
+    env->insert({"nth", nth_func});
+    env->insert({"first", first_func});
+    env->insert({"rest", rest_func});
 
     return env;
 }

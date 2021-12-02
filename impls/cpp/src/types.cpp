@@ -55,7 +55,6 @@ std::string MalAtom::toString(const bool readable) const {
     return "(atom " + object->toString() + ")";
 }
 
-
 /**
  *
  * MalValue
@@ -76,11 +75,11 @@ bool MalNil::isTrue() const {
     return false;
 }
 
-const std::shared_ptr<MalNil> &MalNil::getInstance() {
+const MalNilPtr &MalNil::getInstance() {
     if (nil) {
         return nil;
     }
-    nil = std::shared_ptr<MalNil>(new MalNil());
+    nil = MalNilPtr(new MalNil());
     return nil;
 }
 
@@ -95,7 +94,6 @@ bool MalNil::equals(const MalObject &other) const {
  */
 
 MalInt::MalInt(const int value) : value(value) {}
-
 
 std::string MalInt::toString(const bool readable) const {
     return std::to_string(value);
@@ -154,7 +152,7 @@ std::string MalString::transformString(const std::string_view &str) {
 
 std::string MalString::toString(const bool readable) const {
     if (not readable) {
-        return  value;
+        return value;
     }
 
     std::string readable_str;
@@ -228,7 +226,6 @@ bool MalKeyword::equals(const MalObject &other) const {
     return value == static_cast<const MalKeyword &>(other).value;
 }
 
-
 /**
  *
  * MalBool
@@ -272,7 +269,6 @@ const std::shared_ptr<MalTrue> &MalTrue::getInstance() {
     return true_instance;
 }
 
-
 /**
  *
  * MalFalse
@@ -297,7 +293,6 @@ const std::shared_ptr<MalFalse> &MalFalse::getInstance() {
     return false_instance;
 }
 
-
 /**
  *
  * MalList
@@ -312,7 +307,6 @@ MalList::MalList(const std::string &macro, const MalObjectPtr &object) : is_list
     list.push_back(std::make_shared<MalSymbol>(macro));
     list.push_back(object);
 }
-
 
 void MalList::push_back(const MalObjectPtr &object) {
     list.push_back(object);
@@ -392,8 +386,6 @@ std::shared_ptr<MalList> MalList::cloneAsVector() const {
     return std::shared_ptr<MalList>(new MalList(list, false));
 }
 
-
-
 /**
  *
  * MalHashMap
@@ -451,8 +443,6 @@ bool MalHashMap::equals(const MalObject &other) const {
  *
  */
 
-
-
 std::string MalFuncBase::toString(const bool readable) const {
     return "#<function>";
 }
@@ -491,15 +481,15 @@ bool MalCoreFunc::isCoreFunc() const {
  *
  */
 
-
 bool MalFunc::isCoreFunc() const {
     return false;
 }
 
 MalFunc::MalFunc(const MalObjectPtr &ast, const MalListPtr &params,
-                 const std::shared_ptr<Environment> &env, const std::shared_ptr<MalCoreFunc> &fn) : ast(ast),
-                                                                                                    params(params),
-                                                                                                    env(env), fn(fn) {}
+                 const std::shared_ptr<Environment> &env, const MalCoreFuncPtr &fn)
+        : ast(ast),
+          params(params),
+          env(env), fn(fn) {}
 
 MalObjectPtr MalFunc::operator()(const MalListPtr &vec) const {
     return (*fn)(vec);

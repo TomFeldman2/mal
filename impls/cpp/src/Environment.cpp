@@ -11,8 +11,8 @@ Environment::Environment(const EnvironmentPtr &outer) : outer(outer) {}
 Environment::Environment(const EnvironmentPtr &outer, const MalListPtr &binds,
                          const std::shared_ptr<MalList> &exprs) : outer(outer) {
 
-    size_t i;
-    for (i = 0; i < binds->size(); ++i) {
+    size_t i = 0;
+    for (; i < binds->size(); ++i) {
         auto symbol = std::dynamic_pointer_cast<MalSymbol>(binds->at(i));
         if (symbol->value == "&") break;
 

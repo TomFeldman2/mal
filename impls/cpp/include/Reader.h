@@ -37,15 +37,15 @@ public:
 
 std::vector<std::string_view> tokenize(const std::string &input);
 
-std::shared_ptr<MalObject> readStr(const std::string &input);
+MalObjectPtr readStr(const std::string &input);
 
-std::shared_ptr<MalObject> readFrom(Reader &reader);
+MalObjectPtr readFrom(Reader &reader);
 
-std::shared_ptr<MalList> readList(Reader &reader, bool is_list);
+MalListPtr readList(Reader &reader, bool is_list);
 
-std::shared_ptr<MalHashMap> readMap(Reader &reader);
+MalHashMapPtr readMap(Reader &reader);
 
-std::shared_ptr<MalValue> readAtom(Reader &reader);
+MalObjectPtr readAtom(Reader &reader);
 
 
 #endif //MAL_READER_H

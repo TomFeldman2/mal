@@ -68,11 +68,7 @@ private:
 
 };
 
-
-struct MalValue : public MalObject {
-};
-
-struct MalNil : public MalValue {
+struct MalNil : public MalObject {
 public:
     MalNil(const MalNil &) = delete;
 
@@ -95,8 +91,9 @@ private:
 
 };
 
+using MalNilPtr = std::shared_ptr<MalNil>;
 
-class MalInt : public MalValue {
+class MalInt : public MalObject {
 public:
     const int value;
 
@@ -112,7 +109,7 @@ private:
 
 };
 
-struct MalString : public MalValue {
+struct MalString : public MalObject {
 
     const std::string value;
 
@@ -131,7 +128,7 @@ private:
     bool equals(const MalObject &other) const override;
 };
 
-struct MalSymbol : public MalValue {
+struct MalSymbol : public MalObject {
 
     const std::string value;
 
@@ -149,7 +146,7 @@ private:
 
 };
 
-struct MalKeyword : public MalValue {
+struct MalKeyword : public MalObject {
 
     const std::string_view value;
 
@@ -165,7 +162,7 @@ private:
 
 };
 
-struct MalBool : public MalValue {
+struct MalBool : public MalObject {
     Type getType() const override;
 
     static std::shared_ptr<MalBool> getInstance(bool value);
@@ -174,6 +171,8 @@ private:
 
     bool equals(const MalObject &other) const override;
 };
+
+using MalBoolPtr = std::shared_ptr<MalBool>;
 
 struct MalTrue : public MalBool {
 public:
@@ -190,7 +189,6 @@ private:
 
     static std::shared_ptr<MalTrue> true_instance;
 };
-
 
 struct MalFalse : public MalBool {
 public:
@@ -323,23 +321,31 @@ private:
     const FuncType func;
 };
 
+using MalCoreFuncPtr = std::shared_ptr<MalCoreFunc>;
+
 class Environment;
 
 struct MalFunc : public MalFuncBase {
 public:
     const MalObjectPtr ast;
-    const std::shared_ptr<MalList> params;
+    const MalListPtr params;
     const std::shared_ptr<Environment> env;
-    const std::shared_ptr<MalCoreFunc> fn;
 
-    MalFunc(const MalObjectPtr &ast, const std::shared_ptr<MalList> &params,
-            const std::shared_ptr<Environment> &env, const std::shared_ptr<MalCoreFunc> &fn);
+    bool is_macro = false;
+
+    MalFunc(const MalObjectPtr &ast, const MalListPtr &params,
+            const std::shared_ptr<Environment> &env, const MalCoreFuncPtr &fn);
 
 
     bool isCoreFunc() const override;
 
     MalObjectPtr operator()(const MalListPtr &vec) const override;
+
+private:
+    const std::shared_ptr<MalCoreFunc> fn;
+
 };
 
+using MalFuncPtr = std::shared_ptr<MalFunc>;
 
 #endif //MAL_TYPES_H
