@@ -9,17 +9,25 @@
 #include "../include/Reader.h"
 #include "../include/Error.h"
 
-std::shared_ptr<MalObject> evalAst(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<Environment> &env);
+using std::string_literals::operator""s;
 
-std::shared_ptr<MalList> evalList(const std::shared_ptr<MalList> &list, const std::shared_ptr<Environment> &env);
+MalObjectPtr evalAst(const MalObjectPtr &ast, const EnvironmentPtr &env);
 
-std::shared_ptr<MalHashMap> evalMap(const std::shared_ptr<MalHashMap> &map, const std::shared_ptr<Environment> &env);
+MalListPtr evalList(const MalListPtr &list, const EnvironmentPtr &env);
 
-std::shared_ptr<MalObject> READ(const std::string &input) {
+MalHashMapPtr evalMap(const std::shared_ptr<MalHashMap> &map, const EnvironmentPtr &env);
+
+bool isListStartsWithSymbol(const MalListPtr &list, const std::string &value);
+
+MalObjectPtr quasiQuote(const MalObjectPtr &object);
+
+MalListPtr quasiQuoteListHandler(const MalListPtr &list);
+
+MalObjectPtr READ(const std::string &input) {
     return readStr(input);
 }
 
-std::shared_ptr<MalObject> EVAL(std::shared_ptr<MalObject> ast, std::shared_ptr<Environment> env) {
+MalObjectPtr EVAL(MalObjectPtr ast, EnvironmentPtr env) {
     while (true) {
         if (ast->getType() == MalObject::Type::LIST) {
             auto list = std::static_pointer_cast<MalList>(ast);
@@ -96,7 +104,24 @@ std::shared_ptr<MalObject> EVAL(std::shared_ptr<MalObject> ast, std::shared_ptr<
                     return std::make_shared<MalFunc>(body, params, env, fn);
                 }
 
+                if (symbol->value == "quote") {
+                    assert(list->size() >= 2);
+                    return list->at(1);
+                }
+
+                if (symbol->value == "quasiquote") {
+                    assert(list->size() >= 2);
+                    ast = quasiQuote(list->at(1));
+                    continue;
+                }
+
+                if (symbol->value == "quasiquoteexpand") {
+                    assert(list->size() >= 2);
+                    return quasiQuote(list->at(1));
+                }
+
             }
+
             auto eval_list = std::static_pointer_cast<MalList>(evalAst(ast, env));
             auto func = std::static_pointer_cast<MalFuncBase>(eval_list->at(0));
             if (func->isCoreFunc()) {
@@ -113,7 +138,79 @@ std::shared_ptr<MalObject> EVAL(std::shared_ptr<MalObject> ast, std::shared_ptr<
     }
 }
 
-std::shared_ptr<MalObject> evalAst(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<Environment> &env) {
+MalObjectPtr quasiQuote(const MalObjectPtr &object) {
+    switch (object->getType()) {
+        case MalObject::Type::LIST: {
+            auto list = std::static_pointer_cast<MalList>(object);
+
+            if (list->empty()) return list;
+
+            if (isListStartsWithSymbol(list, "unquote")) {
+                assert(list->size() >= 2);
+                return list->at(1);
+            }
+
+            return quasiQuoteListHandler(list);
+        }
+        case MalObject::Type::VECTOR: {
+            auto result_list = std::make_shared<MalList>();
+            result_list->push_back(std::make_shared<MalSymbol>("vec"s));
+            auto vec = std::static_pointer_cast<MalList>(object);
+            result_list->push_back(quasiQuoteListHandler(vec));
+            return result_list;
+        }
+
+        case MalObject::Type::MAP:
+        case MalObject::Type::SYMBOL: {
+            auto result_list = std::make_shared<MalList>();
+            result_list->push_back(std::make_shared<MalSymbol>("quote"s));
+            result_list->push_back(object);
+            return result_list;
+        }
+
+        default:
+            return object;
+    }
+}
+
+MalListPtr quasiQuoteListHandler(const MalListPtr &list) {
+    auto result_list = std::make_shared<MalList>();
+    for (int i = list->size() - 1; i >= 0; --i) {
+        auto elt = list->at(i);
+        if (elt->getType() == MalObject::Type::LIST) {
+            auto elt_list = std::static_pointer_cast<MalList>(elt);
+            if (isListStartsWithSymbol(elt_list, "splice-unquote")) {
+                assert(elt_list->size() >= 2);
+                auto concat_list = std::make_shared<MalList>();
+                concat_list->push_back(std::make_shared<MalSymbol>("concat"s));
+
+                concat_list->push_back(elt_list->at(1));
+                concat_list->push_back(result_list);
+                result_list = concat_list;
+                continue;
+            }
+        }
+
+        auto cons_list = std::make_shared<MalList>();
+        cons_list->push_back(std::make_shared<MalSymbol>("cons"s));
+        cons_list->push_back(quasiQuote(elt));
+        cons_list->push_back(result_list);
+
+        result_list = cons_list;
+    }
+
+    return result_list;
+}
+
+bool isListStartsWithSymbol(const MalListPtr &list, const std::string &value) {
+    if (list->empty()) return false;
+    auto first = list->at(0);
+
+    return first->getType() == MalObject::Type::SYMBOL and std::static_pointer_cast<MalSymbol>(first)->value == value;
+
+}
+
+MalObjectPtr evalAst(const MalObjectPtr &ast, const EnvironmentPtr &env) {
     switch (ast->getType()) {
         case MalObject::Type::SYMBOL:
             return env->at(std::static_pointer_cast<MalSymbol>(ast)->value);
@@ -131,7 +228,7 @@ std::shared_ptr<MalObject> evalAst(const std::shared_ptr<MalObject> &ast, const 
 }
 
 
-std::shared_ptr<MalList> evalList(const std::shared_ptr<MalList> &list, const std::shared_ptr<Environment> &env) {
+MalListPtr evalList(const MalListPtr &list, const EnvironmentPtr &env) {
     auto eval_list = std::make_shared<MalList>(list->is_list);
     std::transform(list->begin(), list->end(), std::back_inserter(*eval_list),
                    [&env](auto type) { return EVAL(type, env); });
@@ -140,7 +237,7 @@ std::shared_ptr<MalList> evalList(const std::shared_ptr<MalList> &list, const st
 }
 
 
-std::shared_ptr<MalHashMap> evalMap(const std::shared_ptr<MalHashMap> &map, const std::shared_ptr<Environment> &env) {
+std::shared_ptr<MalHashMap> evalMap(const std::shared_ptr<MalHashMap> &map, const EnvironmentPtr &env) {
     auto eval_map = std::make_shared<MalHashMap>();
     std::transform(map->begin(), map->end(), std::inserter(*eval_map, eval_map->begin()),
                    [&env](auto &pair) { return MalHashMap::value_type{pair.first, EVAL(pair.second, env)}; });
@@ -148,12 +245,12 @@ std::shared_ptr<MalHashMap> evalMap(const std::shared_ptr<MalHashMap> &map, cons
 }
 
 
-std::string PRINT(const std::shared_ptr<MalObject> &ast) {
+std::string PRINT(const MalObjectPtr &ast) {
     auto str = ast->toString();
     return str;
 }
 
-std::string rep(const std::string &input, const std::shared_ptr<Environment> &env) {
+std::string rep(const std::string &input, const EnvironmentPtr &env) {
 
     auto ast = READ(input);
     auto result = EVAL(ast, env);

@@ -8,6 +8,6 @@
 #include <memory>
 #include "Environment.h"
 
-std::shared_ptr<Environment> getCoreEnv();
+EnvironmentPtr getCoreEnv();
 
 #endif //MAL_CORE_NS_H

@@ -6,9 +6,9 @@
 #include "../include/Environment.h"
 #include "../include/Error.h"
 
-Environment::Environment(const std::shared_ptr<Environment> &outer) : outer(outer) {}
+Environment::Environment(const EnvironmentPtr &outer) : outer(outer) {}
 
-Environment::Environment(const std::shared_ptr<Environment> &outer, const std::shared_ptr<MalList> &binds,
+Environment::Environment(const EnvironmentPtr &outer, const MalListPtr &binds,
                          const std::shared_ptr<MalList> &exprs) : outer(outer) {
 
     size_t i;
@@ -36,7 +36,7 @@ void Environment::insert(const Environment::value_type &pair) {
     env[pair.first] = pair.second;
 }
 
-const std::shared_ptr<MalObject> &Environment::at(const std::string &key) const {
+const MalObjectPtr &Environment::at(const std::string &key) const {
     try {
         return env.at(key);
     } catch (const std::out_of_range &) {

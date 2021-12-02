@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <deque>
 
 struct MalObject {
     enum class Type {
@@ -50,11 +51,13 @@ private:
 
 };
 
+using MalObjectPtr = std::shared_ptr<MalObject>;
+
 class MalAtom : public MalObject {
 public:
-    std::shared_ptr<MalObject> object;
+    MalObjectPtr object;
 
-    explicit MalAtom(const std::shared_ptr<MalObject> &object);
+    explicit MalAtom(const MalObjectPtr &object);
 
     Type getType() const override;
 
@@ -209,11 +212,13 @@ private:
 
 class MalList : public MalObject {
 private:
-    std::vector<std::shared_ptr<MalObject>> list;
+    std::deque<MalObjectPtr> list;
 
     bool equals(const MalObject &other) const override;
 
     virtual bool isListLike() const override;
+
+    explicit MalList(const std::deque<MalObjectPtr> &list, bool as_list);
 
 public:
     using value_type = typename decltype(list)::value_type;
@@ -224,15 +229,19 @@ public:
 
     explicit MalList(bool isList = true);
 
-    MalList(const std::string &macro, const std::shared_ptr<MalObject> &type);
+    MalList(const std::string &macro, const MalObjectPtr &object);
 
     iterator begin() const;
 
     iterator end() const;
 
+    void insert(iterator position, iterator first, iterator last);
+
     std::string toString(bool readable) const override;
 
-    void push_back(const std::shared_ptr<MalObject> &type);
+    void push_back(const MalObjectPtr &object);
+
+    void push_front(const MalObjectPtr &object);
 
     const value_type &at(size_t n) const;
 
@@ -244,13 +253,19 @@ public:
 
     std::string joinElements(bool include_first, bool readable = true, const std::string &delimiter = " ") const;
 
+    std::shared_ptr<MalList> cloneAsList() const;
+
+    std::shared_ptr<MalList> cloneAsVector() const;
+
 };
+
+using MalListPtr = std::shared_ptr<MalList>;
 
 class MalHashMap : public MalObject {
 private:
-    std::map<std::shared_ptr<MalObject>, std::shared_ptr<MalObject>> hash_map;
+    std::map<MalObjectPtr, MalObjectPtr> hash_map;
 
-    static std::string pairToString(const std::pair<std::shared_ptr<MalObject>, std::shared_ptr<MalObject>> &pair);
+    static std::string pairToString(const std::pair<MalObjectPtr, MalObjectPtr> &pair);
 
     bool equals(const MalObject &other) const override;
 
@@ -276,6 +291,8 @@ public:
 
 };
 
+using MalHashMapPtr = std::shared_ptr<MalHashMap>;
+
 class MalFuncBase : public MalObject {
 public:
 
@@ -285,7 +302,7 @@ public:
 
     virtual bool isCoreFunc() const = 0;
 
-    virtual std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const = 0;
+    virtual MalObjectPtr operator()(const MalListPtr &vec) const = 0;
 
 private:
     bool equals(const MalObject &other) const override;
@@ -294,11 +311,11 @@ private:
 
 class MalCoreFunc : public MalFuncBase {
 public:
-    using FuncType = std::function<std::shared_ptr<MalObject>(std::shared_ptr<MalList>)>;
+    using FuncType = std::function<MalObjectPtr(std::shared_ptr<MalList>)>;
 
     explicit MalCoreFunc(const FuncType &func);
 
-    std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const override;
+    MalObjectPtr operator()(const MalListPtr &vec) const override;
 
     bool isCoreFunc() const;
 
@@ -310,18 +327,18 @@ class Environment;
 
 struct MalFunc : public MalFuncBase {
 public:
-    const std::shared_ptr<MalObject> ast;
+    const MalObjectPtr ast;
     const std::shared_ptr<MalList> params;
     const std::shared_ptr<Environment> env;
     const std::shared_ptr<MalCoreFunc> fn;
 
-    MalFunc(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<MalList> &params,
+    MalFunc(const MalObjectPtr &ast, const std::shared_ptr<MalList> &params,
             const std::shared_ptr<Environment> &env, const std::shared_ptr<MalCoreFunc> &fn);
 
 
     bool isCoreFunc() const override;
 
-    std::shared_ptr<MalObject> operator()(const std::shared_ptr<MalList> &vec) const override;
+    MalObjectPtr operator()(const MalListPtr &vec) const override;
 };
 
 

@@ -10,6 +10,7 @@
 #include "../include/Error.h"
 #include "../include/core_ns.h"
 
+using std::string_literals::operator""s;
 
 int main(int argc, char *argv[]) {
     const auto history_path = "history.txt";
@@ -19,7 +20,7 @@ int main(int argc, char *argv[]) {
     auto env = getCoreEnv();
 
     if (argc >= 2) {
-        rep("load-file \"" + std::string(argv[1]) + "\"", env);
+        rep("load-file \""s + argv[1] + "\"", env);
     }
 
     auto mal_argv = std::make_shared<MalList>();

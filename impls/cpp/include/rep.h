@@ -8,8 +8,8 @@
 #include "types.h"
 #include "Environment.h"
 
-std::string rep(const std::string &input, const std::shared_ptr<Environment> &env);
+std::string rep(const std::string &input, const EnvironmentPtr &env);
 
-std::shared_ptr<MalObject> EVAL(std::shared_ptr<MalObject> ast, std::shared_ptr<Environment> env);
+MalObjectPtr EVAL(MalObjectPtr ast, EnvironmentPtr env);
 
 #endif //MAL_REP_H

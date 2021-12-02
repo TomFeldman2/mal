@@ -41,7 +41,7 @@ bool MalObject::isListLike() const {
  *
  */
 
-MalAtom::MalAtom(const std::shared_ptr<MalObject> &object) : object(object) {}
+MalAtom::MalAtom(const MalObjectPtr &object) : object(object) {}
 
 bool MalAtom::equals(const MalObject &other) const {
     return &other == this;
@@ -306,14 +306,20 @@ const std::shared_ptr<MalFalse> &MalFalse::getInstance() {
 
 MalList::MalList(const bool isList) : is_list(isList) {}
 
-MalList::MalList(const std::string &macro, const std::shared_ptr<MalObject> &type) : is_list(true) {
+MalList::MalList(const std::deque<MalObjectPtr> &list, const bool as_list) : list(list), is_list(as_list) {}
+
+MalList::MalList(const std::string &macro, const MalObjectPtr &object) : is_list(true) {
     list.push_back(std::make_shared<MalSymbol>(macro));
-    list.push_back(type);
+    list.push_back(object);
 }
 
 
-void MalList::push_back(const std::shared_ptr<MalObject> &type) {
-    list.push_back(type);
+void MalList::push_back(const MalObjectPtr &object) {
+    list.push_back(object);
+}
+
+void MalList::push_front(const MalObjectPtr &object) {
+    list.push_front(object);
 }
 
 std::string MalList::toString(const bool readable) const {
@@ -374,6 +380,20 @@ bool MalList::isListLike() const {
     return true;
 }
 
+void MalList::insert(MalList::iterator position, MalList::iterator first, MalList::iterator last) {
+    list.insert(position, first, last);
+}
+
+std::shared_ptr<MalList> MalList::cloneAsList() const {
+    return std::shared_ptr<MalList>(new MalList(list, true));
+}
+
+std::shared_ptr<MalList> MalList::cloneAsVector() const {
+    return std::shared_ptr<MalList>(new MalList(list, false));
+}
+
+
+
 /**
  *
  * MalHashMap
@@ -395,7 +415,7 @@ std::string MalHashMap::toString(const bool readable) const {
     return "{" + map_str + "}";
 }
 
-std::string MalHashMap::pairToString(const std::pair<std::shared_ptr<MalObject>, std::shared_ptr<MalObject>> &pair) {
+std::string MalHashMap::pairToString(const std::pair<MalObjectPtr, MalObjectPtr> &pair) {
     return pair.first->toString() + " " + pair.second->toString();
 }
 
@@ -457,7 +477,7 @@ bool MalFuncBase::isCoreFunc() const {
 
 MalCoreFunc::MalCoreFunc(const MalCoreFunc::FuncType &func) : func(func) {}
 
-std::shared_ptr<MalObject> MalCoreFunc::operator()(const std::shared_ptr<MalList> &vec) const {
+MalObjectPtr MalCoreFunc::operator()(const MalListPtr &vec) const {
     return func(vec);
 }
 
@@ -476,11 +496,11 @@ bool MalFunc::isCoreFunc() const {
     return false;
 }
 
-MalFunc::MalFunc(const std::shared_ptr<MalObject> &ast, const std::shared_ptr<MalList> &params,
+MalFunc::MalFunc(const MalObjectPtr &ast, const MalListPtr &params,
                  const std::shared_ptr<Environment> &env, const std::shared_ptr<MalCoreFunc> &fn) : ast(ast),
                                                                                                     params(params),
                                                                                                     env(env), fn(fn) {}
 
-std::shared_ptr<MalObject> MalFunc::operator()(const std::shared_ptr<MalList> &vec) const {
+MalObjectPtr MalFunc::operator()(const MalListPtr &vec) const {
     return (*fn)(vec);
 }

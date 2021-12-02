@@ -12,23 +12,27 @@
 #include <ostream>
 #include "types.h"
 
+class Environment;
+
+using EnvironmentPtr = std::shared_ptr<Environment>;
+
 class Environment {
 private:
-    std::shared_ptr<Environment> outer;
-    std::map<std::string, std::shared_ptr<MalObject>> env;
+    EnvironmentPtr outer;
+    std::map<std::string, MalObjectPtr> env;
 
 public:
     using value_type = decltype(env)::value_type;
 
     using iterator = decltype(env)::iterator;
 
-    explicit Environment(const std::shared_ptr<Environment> &outer = nullptr);
+    explicit Environment(const EnvironmentPtr &outer = nullptr);
 
-    Environment(const std::shared_ptr<Environment> &outer, const std::shared_ptr<MalList> &binds, const std::shared_ptr<MalList> &exprs);
+    Environment(const EnvironmentPtr &outer, const MalListPtr &binds, const MalListPtr &exprs);
 
     void insert(const value_type &pair);
 
-    const std::shared_ptr<MalObject> &at(const std::string &key) const;
+    const MalObjectPtr &at(const std::string &key) const;
 
     friend std::ostream &operator<<(std::ostream &os, const Environment &environment);
 };
