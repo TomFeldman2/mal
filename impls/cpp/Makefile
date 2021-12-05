@@ -1,11 +1,11 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -g -Wall -Wextra -Wno-unused-parameter
-EXE = step9_try
+EXE = stepA_mal
 
-build: step9_try
+build: stepA_mal
 
 clean:
 	rm -f $(EXE)
 
-step9_try: src/step9_try.cpp src/rep.cpp src/Environment.cpp src/Lexer.cpp src/Reader.cpp src/types.cpp src/Error.cpp src/core_ns.cpp
+stepA_mal: src/stepA_mal.cpp src/rep.cpp src/Environment.cpp src/Lexer.cpp src/Reader.cpp src/types.cpp src/Error.cpp src/core_ns.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^

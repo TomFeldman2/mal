@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 #include "../include/core_ns.h"
 #include "../include/rep.h"
 #include "../include/Reader.h"
@@ -22,29 +23,29 @@ EnvironmentPtr getCoreEnv() {
     auto plus_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                return std::make_shared<MalInt>(std::dynamic_pointer_cast<MalInt>(params->at(1))->value
-                                                + std::dynamic_pointer_cast<MalInt>(params->at(2))->value);
+                return std::make_shared<MalNumber>(std::dynamic_pointer_cast<MalNumber>(params->at(1))->value
+                                                   + std::dynamic_pointer_cast<MalNumber>(params->at(2))->value);
             });
 
     auto minus_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                return std::make_shared<MalInt>(std::dynamic_pointer_cast<MalInt>(params->at(1))->value
-                                                - std::dynamic_pointer_cast<MalInt>(params->at(2))->value);
+                return std::make_shared<MalNumber>(std::dynamic_pointer_cast<MalNumber>(params->at(1))->value
+                                                   - std::dynamic_pointer_cast<MalNumber>(params->at(2))->value);
             });
 
     auto mul_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                return std::make_shared<MalInt>(std::dynamic_pointer_cast<MalInt>(params->at(1))->value
-                                                * std::dynamic_pointer_cast<MalInt>(params->at(2))->value);
+                return std::make_shared<MalNumber>(std::dynamic_pointer_cast<MalNumber>(params->at(1))->value
+                                                   * std::dynamic_pointer_cast<MalNumber>(params->at(2))->value);
             });
 
     auto div_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                return std::make_shared<MalInt>(std::dynamic_pointer_cast<MalInt>(params->at(1))->value
-                                                / std::dynamic_pointer_cast<MalInt>(params->at(2))->value);
+                return std::make_shared<MalNumber>(std::dynamic_pointer_cast<MalNumber>(params->at(1))->value
+                                                   / std::dynamic_pointer_cast<MalNumber>(params->at(2))->value);
             });
 
     auto prn_func = std::make_shared<MalCoreFunc>(
@@ -109,8 +110,8 @@ EnvironmentPtr getCoreEnv() {
     auto count_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 2);
-                if (params->at(1)->getType() == MalObject::Type::NIL) return std::make_shared<MalInt>(0);
-                return std::make_shared<MalInt>(std::dynamic_pointer_cast<MalList>(params->at(1))->size());
+                if (params->at(1)->getType() == MalObject::Type::NIL) return std::make_shared<MalNumber>(0);
+                return std::make_shared<MalNumber>(std::dynamic_pointer_cast<MalList>(params->at(1))->size());
             });
 
     auto eq_func = std::make_shared<MalCoreFunc>(
@@ -122,32 +123,32 @@ EnvironmentPtr getCoreEnv() {
     auto gt_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                auto first = std::dynamic_pointer_cast<MalInt>(params->at(1));
-                auto second = std::dynamic_pointer_cast<MalInt>(params->at(2));
+                auto first = std::dynamic_pointer_cast<MalNumber>(params->at(1));
+                auto second = std::dynamic_pointer_cast<MalNumber>(params->at(2));
                 return MalBool::getInstance(first->value > second->value);
             });
 
     auto gte_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                auto first = std::dynamic_pointer_cast<MalInt>(params->at(1));
-                auto second = std::dynamic_pointer_cast<MalInt>(params->at(2));
+                auto first = std::dynamic_pointer_cast<MalNumber>(params->at(1));
+                auto second = std::dynamic_pointer_cast<MalNumber>(params->at(2));
                 return MalBool::getInstance(first->value >= second->value);
             });
 
     auto lt_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                auto first = std::dynamic_pointer_cast<MalInt>(params->at(1));
-                auto second = std::dynamic_pointer_cast<MalInt>(params->at(2));
+                auto first = std::dynamic_pointer_cast<MalNumber>(params->at(1));
+                auto second = std::dynamic_pointer_cast<MalNumber>(params->at(2));
                 return MalBool::getInstance(first->value < second->value);
             });
 
     auto lte_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 3);
-                auto first = std::dynamic_pointer_cast<MalInt>(params->at(1));
-                auto second = std::dynamic_pointer_cast<MalInt>(params->at(2));
+                auto first = std::dynamic_pointer_cast<MalNumber>(params->at(1));
+                auto second = std::dynamic_pointer_cast<MalNumber>(params->at(2));
                 return MalBool::getInstance(first->value <= second->value);
             });
 
@@ -196,6 +197,40 @@ EnvironmentPtr getCoreEnv() {
                 return isType(params, MalObject::Type::MAP);
             });
 
+    auto is_string_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isType(params, MalObject::Type::STRING);
+            });
+
+    auto is_fn_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto elem = params->at(1);
+
+                if (elem->getType() == MalObject::Type::FUNCTION) {
+                    auto func = std::static_pointer_cast<MalFuncBase>(elem);
+                    return MalBool::getInstance(not func->isMacro());
+                }
+                return MalBool::getInstance(false);
+            });
+
+    auto is_macro_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto elem = params->at(1);
+
+                if (elem->getType() == MalObject::Type::FUNCTION) {
+                    auto func = std::static_pointer_cast<MalFuncBase>(elem);
+                    return MalBool::getInstance(func->isMacro());
+                }
+                return MalBool::getInstance(false);
+            });
+
+    auto is_number_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isType(params, MalObject::Type::NUMBER);
+            });
+
     auto is_seq_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 2);
@@ -242,14 +277,14 @@ EnvironmentPtr getCoreEnv() {
                 assert(atom);
                 auto func = std::dynamic_pointer_cast<MalFuncBase>(params->at(2));
                 assert(func);
-                auto list = std::make_shared<MalList>();
-                params->push_back(func);
-                params->push_back(atom->object);
+                auto func_params = std::make_shared<MalList>();
+                func_params->push_back(func);
+                func_params->push_back(atom->object);
                 for (size_t i = 3; i < params->size(); ++i) {
-                    list->push_back(params->at(i));
+                    func_params->push_back(params->at(i));
                 }
 
-                atom->object = (*func)(list);
+                atom->object = (*func)(func_params);
                 return atom->object;
             });
 
@@ -291,12 +326,13 @@ EnvironmentPtr getCoreEnv() {
                 assert(params->size() == 3);
                 auto list = std::dynamic_pointer_cast<MalList>(params->at(1));
                 assert(list);
-                auto index = std::dynamic_pointer_cast<MalInt>(params->at(2));
+                auto index = std::dynamic_pointer_cast<MalNumber>(params->at(2));
                 assert(index);
                 assert(index->value >= 0);
                 if (list->size() <= static_cast<size_t>(index->value)) {
-                    throw MalException(std::make_shared<MalSymbol>("Out of bounds in nth function. Got index " + std::to_string(index->value)
-                    + ", but list size is " + std::to_string(list->size())));
+                    throw MalException(std::make_shared<MalSymbol>(
+                            "Out of bounds in nth function. Got index " + std::to_string(index->value)
+                            + ", but list size is " + std::to_string(list->size())));
                 }
                 return list->at(index->value);
             });
@@ -429,7 +465,7 @@ EnvironmentPtr getCoreEnv() {
                 assert(map);
                 auto mutable_map = std::make_shared<MalHashMap>(*map);
 
-                for(size_t i = 2; i < params->size(); ++i) {
+                for (size_t i = 2; i < params->size(); ++i) {
                     mutable_map->erase(params->at(i));
                 }
                 return mutable_map;
@@ -467,7 +503,7 @@ EnvironmentPtr getCoreEnv() {
 
                 auto map = std::dynamic_pointer_cast<MalHashMap>(elem);
                 assert(map);
-                return std::static_pointer_cast<MalObject>(MalBool::getInstance(map->contains(params->at(2)))) ;
+                return std::static_pointer_cast<MalObject>(MalBool::getInstance(map->contains(params->at(2))));
             });
 
     auto keys_func = std::make_shared<MalCoreFunc>(
@@ -484,7 +520,7 @@ EnvironmentPtr getCoreEnv() {
                 assert(map);
 
                 auto keys = std::make_shared<MalList>();
-                for (const auto& [key, _] : *map) {
+                for (const auto&[key, _]: *map) {
                     keys->push_back(key);
                 }
                 return std::static_pointer_cast<MalObject>(keys);
@@ -504,18 +540,119 @@ EnvironmentPtr getCoreEnv() {
                 assert(map);
 
                 auto vals = std::make_shared<MalList>();
-                for (const auto& [_, value] : *map) {
-                vals->push_back(value);
-            }
+                for (const auto&[_, value]: *map) {
+                    vals->push_back(value);
+                }
                 return std::static_pointer_cast<MalObject>(vals);
             });
 
     auto throw_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
                 assert(params->size() == 2);
-                auto x = params->at(1);
                 throw MalException(params->at(1));
                 return nullptr;
+            });
+
+    auto readline_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto prompt = std::dynamic_pointer_cast<MalString>(params->at(1));
+                assert(prompt);
+                std::cout << prompt->toString(false);
+
+                MalObjectPtr result = nullptr;
+                std::string line;
+                if (std::getline(std::cin, line)) {
+                    result = std::make_shared<MalString>(line);
+                } else {
+                    result = MalNil::getInstance();
+                }
+
+                return result;
+            });
+
+    auto time_ms_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 1);
+                auto time = std::chrono::system_clock::now();
+                auto ms = time.time_since_epoch().count();
+                return std::make_shared<MalNumber>(ms);
+            });
+
+    auto seq_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto elem = params->at(1);
+
+                MalObjectPtr nil = MalNil::getInstance();
+                MalObjectPtr result = nullptr;
+
+                switch (elem->getType()) {
+                    case MalObject::Type::LIST:
+                    case MalObject::Type::VECTOR: {
+                        auto list = std::static_pointer_cast<MalList>(elem);
+                        if (list->empty()) {
+                            return nil;
+                        }
+
+                        if (list->is_list) {
+                            result = list;
+                        } else {
+                            result = list->cloneAsList();
+                        }
+                        break;
+                    }
+                    case MalObject::Type::STRING: {
+                        auto str = std::static_pointer_cast<MalString>(elem);
+                        if (str->value.empty()) {
+                            return nil;
+                        }
+
+                        auto list = std::make_shared<MalList>();
+                        for (const auto &c: str->value) {
+                            list->push_back(std::make_shared<MalString>(std::string(1, c)));
+                        }
+                        result = list;
+                        break;
+                    }
+                    case MalObject::Type::NIL:
+                        return nil;
+                    default:
+                        assert(false);
+                }
+
+                return result;
+            });
+
+    auto conj_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() >= 3);
+                auto list = std::dynamic_pointer_cast<MalList>(params->at(1));
+                assert(list);
+                auto clone = std::make_shared<MalList>(*list);
+                auto insertion_method = clone->is_list ? &MalList::push_front : &MalList::push_back;
+                for (size_t i = 2; i < params->size(); ++i) {
+                    ((*clone).*insertion_method)(params->at(i));
+                }
+                return clone;
+            });
+
+    auto meta_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size()== 2);
+                auto object = std::dynamic_pointer_cast<MalWithMeta>(params->at(1));
+                assert(object);
+                return object->getMetadata();
+            });
+
+    auto with_meta_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 3);
+                auto object = std::static_pointer_cast<MalWithMeta>(params->at(1));
+                assert(object);
+                auto clone = std::shared_ptr<MalWithMeta>(object->clone());
+                clone->setMetadata(params->at(2));
+                return clone;
             });
 
     env->insert({"+", plus_func});
@@ -548,6 +685,10 @@ EnvironmentPtr getCoreEnv() {
     env->insert({"vector?", is_vector_func});
     env->insert({"sequential?", is_seq_func});
     env->insert({"map?", is_map_func});
+    env->insert({"fn?", is_fn_func});
+    env->insert({"string?", is_string_func});
+    env->insert({"number?", is_number_func});
+    env->insert({"macro?", is_macro_func});
     env->insert({"deref", deref_func});
     env->insert({"reset!", reset_func});
     env->insert({"swap!", swap_func});
@@ -570,6 +711,12 @@ EnvironmentPtr getCoreEnv() {
     env->insert({"keys", keys_func});
     env->insert({"vals", vals_func});
     env->insert({"throw", throw_func});
+    env->insert({"readline", readline_func});
+    env->insert({"time-ms", time_ms_func});
+    env->insert({"seq", seq_func});
+    env->insert({"conj", conj_func});
+    env->insert({"meta", meta_func});
+    env->insert({"with-meta", with_meta_func});
 
     return env;
 }
@@ -594,8 +741,8 @@ MalHashMapPtr addElementsToMap(const MalHashMapPtr &map, const MalListPtr &param
 
     auto mutable_map = std::make_shared<MalHashMap>(*map);
     for (size_t i = 0; i < (params->size() - start_pos) / 2; ++i) {
-        auto key = params->at(start_pos + 2*i);
-        auto value = params->at(start_pos + 1 + 2*i);
+        auto key = params->at(start_pos + 2 * i);
+        auto value = params->at(start_pos + 1 + 2 * i);
         (*mutable_map)[key] = value;
     }
 

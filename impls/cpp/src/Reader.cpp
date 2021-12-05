@@ -144,7 +144,7 @@ MalObjectPtr readAtom(Reader &reader) {
 
     try {
         auto number = std::stoi(std::string(token));
-        return std::make_shared<MalInt>(number);
+        return std::make_shared<MalNumber>(number);
     } catch (const std::invalid_argument&) {}
 
     if (token[0] == '"' and token[token.size() - 1] == '"') {

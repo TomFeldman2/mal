@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
     rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))" , env);
 
     if (argc >= 2) {
-        rep("load-file \""s + argv[1] + "\"", env);
+        std::cout << rep("(load-file \""s + argv[1] + "\")", env) << std::endl;
     }
 
     auto mal_argv = std::make_shared<MalList>();
@@ -33,6 +33,9 @@ int main(int argc, char *argv[]) {
     }
 
     env->insert({"*ARGV*", mal_argv});
+    env->insert({"*host-language*", std::make_shared<MalString>("C++"s)});
+
+    rep(R"((println (str "Mal [" *host-language* "]")))", env);
 
     std::string input;
     while (true) {

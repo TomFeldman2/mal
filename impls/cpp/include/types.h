@@ -21,7 +21,7 @@ struct MalObject {
         LIST,
         VECTOR,
         MAP,
-        INTEGER,
+        NUMBER,
         STRING,
         SYMBOL,
         KEYWORD,
@@ -91,12 +91,11 @@ private:
 
 using MalNilPtr = std::shared_ptr<MalNil>;
 
-class MalInt : public MalObject {
+class MalNumber : public MalObject {
 public:
-    const int value;
+    const long value;
 
-
-    explicit MalInt(int value);
+    explicit MalNumber(long value);
 
     std::string toString(bool readable) const override;
 
@@ -198,7 +197,19 @@ private:
     static std::shared_ptr<MalFalse> false_instance;
 };
 
-class MalList : public MalObject {
+class MalWithMeta : public MalObject {
+private:
+    MalObjectPtr metadata{MalNil::getInstance()};
+
+public:
+    const MalObjectPtr &getMetadata() const;
+
+    void setMetadata(const MalObjectPtr &_metadata);
+
+    virtual MalWithMeta* clone() const = 0;
+};
+
+class MalList : public MalWithMeta {
 private:
     std::deque<MalObjectPtr> list;
 
@@ -247,11 +258,13 @@ public:
 
     std::shared_ptr<MalList> cloneAsVector() const;
 
+    MalList* clone() const;
+
 };
 
 using MalListPtr = std::shared_ptr<MalList>;
 
-class MalHashMap : public MalObject {
+class MalHashMap : public MalWithMeta {
 private:
     struct EQPredicate {
         bool operator()(const MalObjectPtr &a, const MalObjectPtr &b) const;
@@ -291,11 +304,13 @@ public:
     const MalObjectPtr &at(const MalObjectPtr &key) const;
 
     bool contains(const MalObjectPtr &key) const;
+
+    MalHashMap* clone() const;
 };
 
 using MalHashMapPtr = std::shared_ptr<MalHashMap>;
 
-class MalFuncBase : public MalObject {
+class MalFuncBase : public MalWithMeta {
 public:
 
     std::string toString(bool readable) const override;
@@ -303,6 +318,8 @@ public:
     Type getType() const override;
 
     virtual bool isCoreFunc() const = 0;
+
+    virtual bool isMacro() const = 0;
 
     virtual MalObjectPtr operator()(const MalListPtr &vec) const = 0;
 };
@@ -317,6 +334,10 @@ public:
 
     bool isCoreFunc() const;
 
+    bool isMacro() const;
+
+    MalCoreFunc* clone() const;
+
 private:
     const FuncType func;
 };
@@ -330,7 +351,6 @@ public:
     const MalObjectPtr ast;
     const MalListPtr params;
     const std::shared_ptr<Environment> env;
-
     bool is_macro = false;
 
     MalFunc(const MalObjectPtr &ast, const MalListPtr &params,
@@ -341,9 +361,12 @@ public:
 
     MalObjectPtr operator()(const MalListPtr &vec) const override;
 
+    bool isMacro() const;
+
+    MalFunc* clone() const;
+
 private:
     const std::shared_ptr<MalCoreFunc> fn;
-
 };
 
 using MalFuncPtr = std::shared_ptr<MalFunc>;

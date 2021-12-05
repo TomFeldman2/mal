@@ -94,22 +94,22 @@ bool MalNil::equals(const MalObject &other) const {
 
 /**
  *
- * MalInt
+ * MalNumber
  *
  */
 
-MalInt::MalInt(const int value) : value(value) {}
+MalNumber::MalNumber(const long value) : value(value) {}
 
-std::string MalInt::toString(const bool readable) const {
+std::string MalNumber::toString(const bool readable) const {
     return std::to_string(value);
 }
 
-MalObject::Type MalInt::getType() const {
-    return MalObject::Type::INTEGER;
+MalObject::Type MalNumber::getType() const {
+    return MalObject::Type::NUMBER;
 }
 
-bool MalInt::equals(const MalObject &other) const {
-    return static_cast<const MalInt &>(other).value == value;
+bool MalNumber::equals(const MalObject &other) const {
+    return static_cast<const MalNumber &>(other).value == value;
 }
 
 /**
@@ -295,6 +295,21 @@ const std::shared_ptr<MalFalse> &MalFalse::getInstance() {
 
 /**
  *
+ * MalWithMeta
+ *
+ */
+
+const MalObjectPtr &MalWithMeta::getMetadata() const {
+    return metadata;
+}
+
+void MalWithMeta::setMetadata(const MalObjectPtr &_metadata) {
+    metadata = _metadata;
+}
+
+
+/**
+ *
  * MalList
  *
  */
@@ -390,6 +405,10 @@ void MalList::pop_back() {
     list.pop_back();
 }
 
+MalList* MalList::clone() const {
+    return new MalList(*this);
+}
+
 /**
  *
  * MalHashMap
@@ -462,6 +481,10 @@ bool MalHashMap::contains(const MalObjectPtr &key) const {
     return hash_map.find(key) != end();
 }
 
+MalHashMap *MalHashMap::clone() const {
+    return new MalHashMap(*this);
+}
+
 /**
  *
  * MalFuncBase
@@ -496,6 +519,14 @@ bool MalCoreFunc::isCoreFunc() const {
     return true;
 }
 
+MalCoreFunc* MalCoreFunc::clone() const {
+    return new MalCoreFunc(*this);
+}
+
+bool MalCoreFunc::isMacro() const {
+    return false;
+}
+
 /**
  *
  * MalFunc
@@ -516,6 +547,15 @@ MalObjectPtr MalFunc::operator()(const MalListPtr &vec) const {
     return (*fn)(vec);
 }
 
+
+MalFunc* MalFunc::clone() const {
+    return new MalFunc(*this);
+}
+
+bool MalFunc::isMacro() const {
+    return is_macro;
+}
+
 /**
  *
  * MalException
@@ -531,4 +571,5 @@ MalObject::Type MalException::getType() const {
 std::string MalException::toString(bool readable) const {
     return "(Exception " + object->toString(readable) + ")";
 }
+
 

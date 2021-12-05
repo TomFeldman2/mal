@@ -181,7 +181,9 @@ MalObjectPtr doDef(EnvironmentPtr &env, const std::shared_ptr<MalList> &list, co
     if (set_macro) {
         auto macro_func = std::dynamic_pointer_cast<MalFunc>(value);
         assert(macro_func);
-        macro_func->is_macro = true;
+        auto clone = std::shared_ptr<MalFunc>(macro_func->clone());
+        clone->is_macro = true;
+        value = clone;
     }
 
     env->insert({key->value, value});
