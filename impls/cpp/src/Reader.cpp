@@ -129,7 +129,7 @@ MalHashMapPtr readMap(Reader &reader) {
         try {
             const auto key = readFrom(reader);
             const auto value = readFrom(reader);
-            map->insert({key, value});
+            (*map)[key] = value;
         } catch (const Reader::Comment&) {
             throw Error("Encountered comment inside hashmap");
         }

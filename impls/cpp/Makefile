@@ -1,11 +1,11 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -g -Wall -Wextra -Wno-unused-parameter
-EXE = step8_macros
+EXE = step9_try
 
-build: step8_macros
+build: step9_try
 
 clean:
 	rm -f $(EXE)
 
-step8_macros: src/step8_macros.cpp src/rep.cpp src/Environment.cpp src/Lexer.cpp src/Reader.cpp src/types.cpp src/Error.cpp src/core_ns.cpp
+step9_try: src/step9_try.cpp src/rep.cpp src/Environment.cpp src/Lexer.cpp src/Reader.cpp src/types.cpp src/Error.cpp src/core_ns.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^

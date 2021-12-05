@@ -27,8 +27,8 @@ struct MalObject {
         KEYWORD,
         FUNCTION,
         ATOM,
+        EXCEPTION,
     };
-
 
     virtual Type getType() const = 0;
 
@@ -40,6 +40,8 @@ struct MalObject {
 
     bool operator==(const MalObject &other) const;
 
+    bool operator!=(const MalObject &other) const;
+
     friend std::ostream &operator<<(std::ostream &os, const MalObject &object);
 
 private:
@@ -47,7 +49,7 @@ private:
 
     virtual bool isListLike() const;
 
-    virtual bool equals(const MalObject &other) const = 0;
+    virtual bool equals(const MalObject &other) const;
 
 };
 
@@ -62,10 +64,6 @@ public:
     Type getType() const override;
 
     std::string toString(bool readable) const override;
-
-private:
-    bool equals(const MalObject &other) const;
-
 };
 
 struct MalNil : public MalObject {
@@ -146,20 +144,12 @@ private:
 
 };
 
-struct MalKeyword : public MalObject {
-
-    const std::string_view value;
+struct MalKeyword : public MalSymbol {
+    explicit MalKeyword(const std::string &value);
 
     explicit MalKeyword(const std::string_view &value);
 
-    std::string toString(bool readable) const override;
-
     Type getType() const override;
-
-private:
-
-    bool equals(const MalObject &other) const override;
-
 };
 
 struct MalBool : public MalObject {
@@ -241,6 +231,8 @@ public:
 
     void push_front(const MalObjectPtr &object);
 
+    void pop_back();
+
     const value_type &at(size_t n) const;
 
     size_t size() const;
@@ -261,12 +253,19 @@ using MalListPtr = std::shared_ptr<MalList>;
 
 class MalHashMap : public MalObject {
 private:
-    std::map<MalObjectPtr, MalObjectPtr> hash_map;
+    struct EQPredicate {
+        bool operator()(const MalObjectPtr &a, const MalObjectPtr &b) const;
+    };
 
-    static std::string pairToString(const std::pair<MalObjectPtr, MalObjectPtr> &pair);
+    struct Hash {
+        unsigned int operator()(const MalObjectPtr &k) const;
+    };
+
+    std::unordered_map<MalObjectPtr, MalObjectPtr, Hash, EQPredicate> hash_map;
+
+    static std::string pairToString(const std::pair<MalObjectPtr, MalObjectPtr> &pair, bool readable);
 
     bool equals(const MalObject &other) const override;
-
 
 public:
     using value_type = typename decltype(hash_map)::value_type;
@@ -275,7 +274,7 @@ public:
 
     explicit MalHashMap() = default;
 
-    void insert(const value_type &pair);
+    MalObjectPtr& operator[] (const MalObjectPtr& k);
 
     iterator insert(iterator position, const value_type &val);
 
@@ -287,6 +286,11 @@ public:
 
     Type getType() const override;
 
+    void erase(const MalObjectPtr &key);
+
+    const MalObjectPtr &at(const MalObjectPtr &key) const;
+
+    bool contains(const MalObjectPtr &key) const;
 };
 
 using MalHashMapPtr = std::shared_ptr<MalHashMap>;
@@ -301,10 +305,6 @@ public:
     virtual bool isCoreFunc() const = 0;
 
     virtual MalObjectPtr operator()(const MalListPtr &vec) const = 0;
-
-private:
-    bool equals(const MalObject &other) const override;
-
 };
 
 class MalCoreFunc : public MalFuncBase {
@@ -347,5 +347,16 @@ private:
 };
 
 using MalFuncPtr = std::shared_ptr<MalFunc>;
+
+class MalException : public MalObject {
+public:
+    MalObjectPtr object;
+
+    explicit MalException(const MalObjectPtr &object);
+
+    Type getType() const override;
+
+    std::string toString(bool readable) const override;
+};
 
 #endif //MAL_TYPES_H

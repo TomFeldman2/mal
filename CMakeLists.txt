@@ -4,8 +4,8 @@ project(mal)
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(
-        step8_macros
-        impls/cpp/src/step8_macros.cpp
+        step9_try
+        impls/cpp/src/step9_try.cpp
         impls/cpp/src/Lexer.cpp
         impls/cpp/src/Reader.cpp
         impls/cpp/src/types.cpp

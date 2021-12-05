@@ -10,6 +10,12 @@
 #include "../include/Reader.h"
 #include "../include/Error.h"
 
+MalBoolPtr isType(const MalListPtr &params, MalObject::Type type);
+
+MalBoolPtr isBoolLiteral(const MalListPtr &params, bool is_true);
+
+MalHashMapPtr addElementsToMap(const MalHashMapPtr &map, const MalListPtr &params, size_t start_pos);
+
 EnvironmentPtr getCoreEnv() {
     auto env = std::make_shared<Environment>();
 
@@ -43,7 +49,7 @@ EnvironmentPtr getCoreEnv() {
 
     auto prn_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
-                std::cout << params->joinElements(false) << std::endl;
+                std::cout << params->joinElements(false, true) << std::endl;
                 return MalNil::getInstance();
             });
 
@@ -89,10 +95,9 @@ EnvironmentPtr getCoreEnv() {
                 return new_params;
             });
 
-    auto is_params_func = std::make_shared<MalCoreFunc>(
+    auto is_list_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
-                assert(params->size() == 2);
-                return MalBool::getInstance(params->at(1)->getType() == MalObject::Type::LIST);
+                return isType(params, MalObject::Type::LIST);
             });
 
     auto is_empty_func = std::make_shared<MalCoreFunc>(
@@ -161,8 +166,56 @@ EnvironmentPtr getCoreEnv() {
 
     auto is_atom_func = std::make_shared<MalCoreFunc>(
             [](auto params) {
+                return isType(params, MalObject::Type::ATOM);
+            });
+
+
+    auto is_nil_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isType(params, MalObject::Type::NIL);
+            });
+
+
+    auto is_symbol_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isType(params, MalObject::Type::SYMBOL);
+            });
+
+    auto is_keyword_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isType(params, MalObject::Type::KEYWORD);
+            });
+
+    auto is_vector_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isType(params, MalObject::Type::VECTOR);
+            });
+
+    auto is_map_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isType(params, MalObject::Type::MAP);
+            });
+
+    auto is_seq_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
                 assert(params->size() == 2);
-                return MalBool::getInstance(params->at(1)->getType() == MalObject::Type::ATOM);
+                switch (params->at(1)->getType()) {
+                    case MalObject::Type::LIST:
+                    case MalObject::Type::VECTOR:
+                        return MalBool::getInstance(true);
+                    default:
+                        return MalBool::getInstance(false);
+                }
+            });
+
+    auto is_true_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isBoolLiteral(params, true);
+            });
+
+    auto is_false_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                return isBoolLiteral(params, false);
             });
 
     auto deref_func = std::make_shared<MalCoreFunc>(
@@ -190,7 +243,7 @@ EnvironmentPtr getCoreEnv() {
                 auto func = std::dynamic_pointer_cast<MalFuncBase>(params->at(2));
                 assert(func);
                 auto list = std::make_shared<MalList>();
-                params->push_back(nullptr); // since first value is always ignored (it's usually the function itself)
+                params->push_back(func);
                 params->push_back(atom->object);
                 for (size_t i = 3; i < params->size(); ++i) {
                     list->push_back(params->at(i));
@@ -230,7 +283,7 @@ EnvironmentPtr getCoreEnv() {
                 assert(params->size() == 2);
                 auto list = std::dynamic_pointer_cast<MalList>(params->at(1));
                 assert(list);
-                return list->cloneAsVector();;
+                return list->cloneAsVector();
             });
 
     auto nth_func = std::make_shared<MalCoreFunc>(
@@ -242,8 +295,8 @@ EnvironmentPtr getCoreEnv() {
                 assert(index);
                 assert(index->value >= 0);
                 if (list->size() <= static_cast<size_t>(index->value)) {
-                    throw Error("Out of bounds in nth function. Got index " + std::to_string(index->value)
-                    + ", but list size is" + std::to_string(list->size()));
+                    throw MalException(std::make_shared<MalSymbol>("Out of bounds in nth function. Got index " + std::to_string(index->value)
+                    + ", but list size is " + std::to_string(list->size())));
                 }
                 return list->at(index->value);
             });
@@ -281,6 +334,190 @@ EnvironmentPtr getCoreEnv() {
                 return rest_list;
             });
 
+    auto apply_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() >= 3);
+                auto apply_list = std::make_shared<MalList>();
+                auto func = std::dynamic_pointer_cast<MalFuncBase>(params->at(1));
+                assert(func);
+                apply_list->push_back(func);
+
+                for (size_t i = 2; i < params->size() - 1; ++i) {
+                    apply_list->push_back(params->at(i));
+                }
+
+                auto list = std::dynamic_pointer_cast<MalList>(params->at(params->size() - 1));
+                assert(list);
+                apply_list->insert(apply_list->end(), list->begin(), list->end());
+
+                return (*func)(apply_list);
+            });
+
+    auto map_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 3);
+                auto func = std::dynamic_pointer_cast<MalFuncBase>(params->at(1));
+                assert(func);
+
+                auto list = std::dynamic_pointer_cast<MalList>(params->at(2));
+                assert(list);
+
+                auto result_list = std::make_shared<MalList>();
+
+                auto tmp_param_list = std::make_shared<MalList>();
+                tmp_param_list->push_back(func);
+
+                for (size_t i = 0; i < list->size(); ++i) {
+                    tmp_param_list->push_back(list->at(i));
+                    auto result = (*func)(tmp_param_list);
+                    tmp_param_list->pop_back();
+                    result_list->push_back(result);
+                }
+
+                return result_list;
+            });
+
+    auto keyword_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+
+                auto elem = params->at(1);
+                if (elem->getType() == MalObject::Type::KEYWORD) {
+                    return std::static_pointer_cast<MalKeyword>(elem);
+                }
+                auto str = std::dynamic_pointer_cast<MalString>(elem);
+                assert(str);
+                return std::make_shared<MalKeyword>(":" + str->value);
+            });
+
+    auto symbol_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto str = std::dynamic_pointer_cast<MalString>(params->at(1));
+                assert(str);
+                return std::make_shared<MalSymbol>(str->value);
+            });
+
+    auto vector_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                auto vec = std::make_shared<MalList>(false);
+
+                if (params->size() > 1) {
+                    vec->insert(vec->begin(), std::next(params->begin()), params->end());
+                }
+                return vec;
+            });
+
+    auto hash_map_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                auto map = std::make_shared<MalHashMap>();
+                return addElementsToMap(map, params, 1);
+            });
+
+    auto assoc_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() >= 2);
+                auto map = std::dynamic_pointer_cast<MalHashMap>(params->at(1));
+                assert(map);
+                return addElementsToMap(map, params, 2);
+            });
+
+    auto dissoc_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() >= 2);
+                auto map = std::dynamic_pointer_cast<MalHashMap>(params->at(1));
+                assert(map);
+                auto mutable_map = std::make_shared<MalHashMap>(*map);
+
+                for(size_t i = 2; i < params->size(); ++i) {
+                    mutable_map->erase(params->at(i));
+                }
+                return mutable_map;
+            });
+
+    auto get_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 3);
+                const MalObjectPtr &nil = MalNil::getInstance();
+
+                auto elem = params->at(1);
+                if (elem == nil) {
+                    return nil;
+                }
+
+                auto map = std::dynamic_pointer_cast<MalHashMap>(elem);
+                assert(map);
+                auto key = params->at(2);
+                if (map->contains(key)) {
+                    return map->at(key);
+                }
+
+                return nil;
+            });
+
+    auto contains_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 3);
+                const MalObjectPtr &nil = MalNil::getInstance();
+
+                auto elem = params->at(1);
+                if (elem == nil) {
+                    return nil;
+                }
+
+                auto map = std::dynamic_pointer_cast<MalHashMap>(elem);
+                assert(map);
+                return std::static_pointer_cast<MalObject>(MalBool::getInstance(map->contains(params->at(2)))) ;
+            });
+
+    auto keys_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                const MalObjectPtr &nil = MalNil::getInstance();
+
+                auto elem = params->at(1);
+                if (elem == nil) {
+                    return nil;
+                }
+
+                auto map = std::dynamic_pointer_cast<MalHashMap>(elem);
+                assert(map);
+
+                auto keys = std::make_shared<MalList>();
+                for (const auto& [key, _] : *map) {
+                    keys->push_back(key);
+                }
+                return std::static_pointer_cast<MalObject>(keys);
+            });
+
+    auto vals_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                const MalObjectPtr &nil = MalNil::getInstance();
+
+                auto elem = params->at(1);
+                if (elem == nil) {
+                    return nil;
+                }
+
+                auto map = std::dynamic_pointer_cast<MalHashMap>(elem);
+                assert(map);
+
+                auto vals = std::make_shared<MalList>();
+                for (const auto& [_, value] : *map) {
+                vals->push_back(value);
+            }
+                return std::static_pointer_cast<MalObject>(vals);
+            });
+
+    auto throw_func = std::make_shared<MalCoreFunc>(
+            [](auto params) {
+                assert(params->size() == 2);
+                auto x = params->at(1);
+                throw MalException(params->at(1));
+                return nullptr;
+            });
+
     env->insert({"+", plus_func});
     env->insert({"-", minus_func});
     env->insert({"*", mul_func});
@@ -292,7 +529,7 @@ EnvironmentPtr getCoreEnv() {
     env->insert({"read-string", read_string_func});
     env->insert({"slurp", slurp_func});
     env->insert({"list", list_func});
-    env->insert({"params?", is_params_func});
+    env->insert({"list?", is_list_func});
     env->insert({"empty?", is_empty_func});
     env->insert({"count", count_func});
     env->insert({"=", eq_func});
@@ -303,6 +540,14 @@ EnvironmentPtr getCoreEnv() {
     env->insert({"eval", eval_func});
     env->insert({"atom", atom_func});
     env->insert({"atom?", is_atom_func});
+    env->insert({"nil?", is_nil_func});
+    env->insert({"true?", is_true_func});
+    env->insert({"false?", is_false_func});
+    env->insert({"symbol?", is_symbol_func});
+    env->insert({"keyword?", is_keyword_func});
+    env->insert({"vector?", is_vector_func});
+    env->insert({"sequential?", is_seq_func});
+    env->insert({"map?", is_map_func});
     env->insert({"deref", deref_func});
     env->insert({"reset!", reset_func});
     env->insert({"swap!", swap_func});
@@ -312,6 +557,47 @@ EnvironmentPtr getCoreEnv() {
     env->insert({"nth", nth_func});
     env->insert({"first", first_func});
     env->insert({"rest", rest_func});
+    env->insert({"apply", apply_func});
+    env->insert({"map", map_func});
+    env->insert({"symbol", symbol_func});
+    env->insert({"keyword", keyword_func});
+    env->insert({"vector", vector_func});
+    env->insert({"hash-map", hash_map_func});
+    env->insert({"assoc", assoc_func});
+    env->insert({"dissoc", dissoc_func});
+    env->insert({"get", get_func});
+    env->insert({"contains?", contains_func});
+    env->insert({"keys", keys_func});
+    env->insert({"vals", vals_func});
+    env->insert({"throw", throw_func});
 
     return env;
+}
+
+MalBoolPtr isType(const MalListPtr &params, const MalObject::Type type) {
+    assert(params->size() == 2);
+    return MalBool::getInstance(params->at(1)->getType() == type);
+}
+
+MalBoolPtr isBoolLiteral(const MalListPtr &params, const bool is_true) {
+    assert(params->size() == 2);
+    auto value = params->at(1);
+    if (value->getType() != MalObject::Type::BOOLEAN) {
+        return MalBool::getInstance(false);
+    }
+
+    return MalBool::getInstance(value->isTrue() == is_true);
+}
+
+MalHashMapPtr addElementsToMap(const MalHashMapPtr &map, const MalListPtr &params, const size_t start_pos) {
+    assert((params->size() - start_pos) % 2 == 0);
+
+    auto mutable_map = std::make_shared<MalHashMap>(*map);
+    for (size_t i = 0; i < (params->size() - start_pos) / 2; ++i) {
+        auto key = params->at(start_pos + 2*i);
+        auto value = params->at(start_pos + 1 + 2*i);
+        (*mutable_map)[key] = value;
+    }
+
+    return mutable_map;
 }

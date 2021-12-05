@@ -46,7 +46,10 @@ int main(int argc, char *argv[]) {
             std::cout << rep(input, env) << std::endl;
         } catch (const Error &e) {
             std::cout << e.what() << std::endl;
-        } catch (const Reader::Comment &) {}
+        } catch (const MalException& e) {
+            std::cout << e.toString(false) << std::endl;
+        }
+        catch (const Reader::Comment &) {}
         linenoise::AddHistory(input.c_str());
     }
 

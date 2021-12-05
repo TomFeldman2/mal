@@ -22,6 +22,11 @@ bool MalObject::operator==(const MalObject &other) const {
     return equals(other);
 }
 
+bool MalObject::operator!=(const MalObject &other) const {
+    return not(*this == other);
+}
+
+
 bool MalObject::areSameTypes(const MalObject &first, const MalObject &second) {
     return first.getType() == second.getType() or (first.isListLike() and second.isListLike());
 }
@@ -35,6 +40,10 @@ bool MalObject::isListLike() const {
     return false;
 }
 
+bool MalObject::equals(const MalObject &other) const {
+    return &other == this;
+}
+
 /**
  *
  * MalAtom
@@ -43,16 +52,12 @@ bool MalObject::isListLike() const {
 
 MalAtom::MalAtom(const MalObjectPtr &object) : object(object) {}
 
-bool MalAtom::equals(const MalObject &other) const {
-    return &other == this;
-}
-
 MalObject::Type MalAtom::getType() const {
     return Type::ATOM;
 }
 
 std::string MalAtom::toString(const bool readable) const {
-    return "(atom " + object->toString() + ")";
+    return "(atom " + object->toString(readable) + ")";
 }
 
 /**
@@ -212,19 +217,14 @@ bool MalSymbol::equals(const MalObject &other) const {
  *
  */
 
-MalKeyword::MalKeyword(const std::string_view &value) : value(value) {}
+MalKeyword::MalKeyword(const std::string &value) : MalSymbol(value) {}
 
-std::string MalKeyword::toString(const bool readable) const {
-    return std::string(value);
-}
+MalKeyword::MalKeyword(const std::string_view &value) : MalSymbol(value) {}
 
 MalObject::Type MalKeyword::getType() const {
     return Type::KEYWORD;
 }
 
-bool MalKeyword::equals(const MalObject &other) const {
-    return value == static_cast<const MalKeyword &>(other).value;
-}
 
 /**
  *
@@ -386,29 +386,42 @@ std::shared_ptr<MalList> MalList::cloneAsVector() const {
     return std::shared_ptr<MalList>(new MalList(list, false));
 }
 
+void MalList::pop_back() {
+    list.pop_back();
+}
+
 /**
  *
  * MalHashMap
  *
  */
 
-void MalHashMap::insert(const value_type &pair) {
-    hash_map.insert(pair);
+bool MalHashMap::EQPredicate::operator()(const MalObjectPtr &a, const MalObjectPtr &b) const {
+    return *a == *b;
+}
+
+unsigned int MalHashMap::Hash::operator()(const MalObjectPtr &k) const {
+    std::hash<std::string> hash_fn;
+    return hash_fn(k->toString());
+}
+
+MalObjectPtr& MalHashMap::operator[] (const MalObjectPtr& k) {
+    return hash_map[k];
 }
 
 std::string MalHashMap::toString(const bool readable) const {
     std::string map_str;
     if (not hash_map.empty()) {
-        map_str = std::accumulate(std::next(hash_map.begin()), hash_map.end(), pairToString(*hash_map.begin()),
-                                  [](std::string &str, auto pair) { return str + " " + pairToString(pair); });
+        map_str = std::accumulate(std::next(hash_map.begin()), hash_map.end(), pairToString(*hash_map.begin(), readable),
+                                  [&readable](std::string &str, auto pair) { return str + " " + pairToString(pair, readable); });
     }
 
 
     return "{" + map_str + "}";
 }
 
-std::string MalHashMap::pairToString(const std::pair<MalObjectPtr, MalObjectPtr> &pair) {
-    return pair.first->toString() + " " + pair.second->toString();
+std::string MalHashMap::pairToString(const std::pair<MalObjectPtr, MalObjectPtr> &pair, const bool readable) {
+    return pair.first->toString(readable) + " " + pair.second->toString(readable);
 }
 
 MalObject::Type MalHashMap::getType() const {
@@ -428,13 +441,25 @@ MalHashMap::iterator MalHashMap::insert(MalHashMap::iterator position, const Mal
 }
 
 bool MalHashMap::equals(const MalObject &other) const {
-    auto other_map = static_cast<const MalHashMap &>(other);
+    auto &other_map = static_cast<const MalHashMap &>(other);
     if (hash_map.size() != other_map.hash_map.size()) return false;
 
     return std::equal(begin(), end(), other_map.begin(),
                       [](auto pair1, auto pair2) {
                           return (*pair1.first == *pair2.first) and (*pair1.second == *pair2.second);
                       });
+}
+
+void MalHashMap::erase(const MalObjectPtr &key) {
+    hash_map.erase(key);
+}
+
+const MalObjectPtr &MalHashMap::at(const MalObjectPtr &key) const {
+    return hash_map.at(key);
+}
+
+bool MalHashMap::contains(const MalObjectPtr &key) const {
+    return hash_map.find(key) != end();
 }
 
 /**
@@ -449,10 +474,6 @@ std::string MalFuncBase::toString(const bool readable) const {
 
 MalObject::Type MalFuncBase::getType() const {
     return Type::FUNCTION;
-}
-
-bool MalFuncBase::equals(const MalObject &other) const {
-    return this == &other;
 }
 
 bool MalFuncBase::isCoreFunc() const {
@@ -494,3 +515,20 @@ MalFunc::MalFunc(const MalObjectPtr &ast, const MalListPtr &params,
 MalObjectPtr MalFunc::operator()(const MalListPtr &vec) const {
     return (*fn)(vec);
 }
+
+/**
+ *
+ * MalException
+ *
+ */
+
+MalException::MalException(const MalObjectPtr &object) : object(object) {}
+
+MalObject::Type MalException::getType() const {
+    return MalObject::Type::EXCEPTION;
+}
+
+std::string MalException::toString(bool readable) const {
+    return "(Exception " + object->toString(readable) + ")";
+}
+

@@ -129,6 +129,34 @@ MalObjectPtr EVAL(MalObjectPtr ast, EnvironmentPtr env) {
                     auto macro = list->at(1);
                     return macroExpand(macro, env);
                 }
+
+                if (symbol->value == "try*") {
+                    assert(list->size() >= 2);
+                    try {
+                        return EVAL(list->at(1), env);
+                    } catch (const MalException& e){
+                        if (list->size() == 2) {
+                            throw;
+                        }
+
+                        auto catch_exp = std::dynamic_pointer_cast<MalList>(list->at(2));
+
+                        assert(catch_exp);
+                        if (not isListStartsWithSymbol(catch_exp, "catch*")) {
+                            throw;
+                        }
+
+                        auto new_env = std::make_shared<Environment>(env);
+
+                        assert(catch_exp->size() == 3);
+                        auto catch_symbol = std::dynamic_pointer_cast<MalSymbol>(catch_exp->at(1));
+                        assert(catch_symbol);
+                        new_env->insert({catch_symbol->value, e.object});
+                        env = new_env;
+                        ast = catch_exp->at(2);
+                        continue;
+                    }
+                }
             }
 
             auto eval_list = std::static_pointer_cast<MalList>(evalAst(ast, env));
@@ -249,7 +277,7 @@ MalFuncPtr isMacroCall(const MalObjectPtr &ast, const EnvironmentPtr &env) {
             if (func and func->is_macro) {
                 return func;
             }
-        } catch (const Error&) {}
+        } catch (const MalException&) {}
 
         return nullptr;
 }

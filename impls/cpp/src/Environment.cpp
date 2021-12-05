@@ -44,7 +44,7 @@ const MalObjectPtr &Environment::at(const std::string &key) const {
             return outer->at(key);
         }
 
-        throw Error(key + " not found");
+        throw MalException(std::make_shared<MalString>("'" + key + "'" + " not found"));
     }
 }
 
